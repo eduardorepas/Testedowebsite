@@ -18,7 +18,7 @@ let state = {
     cart: [],
     currentCategory: "Todos",
     searchQuery: "",
-    rentals: []
+    activeSubscription: null
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -43,7 +43,7 @@ function saveToStorage() {
         isAuthenticated: state.isAuthenticated,
         currentUser: state.currentUser,
         cart: state.cart,
-        rentals: state.rentals
+        activeSubscription: state.activeSubscription
     };
     localStorage.setItem('homeloop_state', JSON.stringify(dataToSave));
 }
@@ -55,15 +55,15 @@ function loadFromStorage() {
         state.isAuthenticated = data.isAuthenticated;
         state.currentUser = data.currentUser;
         state.cart = data.cart || [];
-        state.rentals = data.rentals || [];
+        state.activeSubscription = data.activeSubscription || null;
     }
 }
 
 function showLoginUI() {
     document.getElementById('navbar-main').style.display = 'none';
     document.getElementById('login-view').classList.remove('hidden');
-    document.querySelectorAll('.view-section').forEach(v => {
-        if (v.id !== 'login-view') v.classList.add('hidden');
+    document.querySelectorAll('.view-section:not(#login-view)').forEach(v => {
+        v.classList.add('hidden');
     });
 }
 
@@ -168,6 +168,7 @@ async function handleRegister(event) {
     errorDiv.innerText = "";
     alert("Conta criada com sucesso! Agora pode fazer login.");
     switchAuthTab('login');
+    document.getElementById("register-form").reset();
 }
 
 async function handleForgotPassword(event) {
@@ -204,6 +205,10 @@ function handleLogout() {
     state.currentCategory = "Todos";
     state.searchQuery = "";
     saveToStorage();
+    
+    const forms = document.querySelectorAll('form');
+    forms.forEach(form => form.reset());
+    
     showLoginUI();
 }
 
@@ -466,18 +471,11 @@ function processCheckout(event) {
         delivery: { date, slot },
         price: ANNUAL_PRICE + "€/ano",
         itemsCount: state.cart.length,
-        items: state.cart.map(i => `${i.brand} ${i.name}`)
+        items: state.cart.map(i => ({ ...i }))
     };
 
-    const rental = {
-        id: subscription.contractId,
-        items: state.cart,
-        deliveryDate: date,
-        deliverySlot: slot,
-        status: "agendada"
-    };
-    
-    state.rentals.push(rental);
+    state.activeSubscription = subscription;
+    state.cart = [];
 
     const receiptDiv = document.getElementById("receipt-details");
     receiptDiv.innerHTML = `
@@ -488,13 +486,10 @@ function processCheckout(event) {
         <strong>Janela de Entrega Agendada:</strong> ${subscription.delivery.date} [${subscription.delivery.slot}]<br>
         <strong>Total Cobrado:</strong> ${subscription.price}<br>
         <strong>Equipamentos Rentabilizados (${subscription.itemsCount}):</strong><br>
-        ${subscription.items.map(title => ` - ${title}`).join('<br>')}
+        ${subscription.items.map(title => ` - ${title.brand} ${title.name}`).join('<br>')}
     `;
 
-    state.cart = [];
     saveToStorage();
-    document.getElementById("cart-count").innerText = 0;
-
     switchView('success-view');
 }
 
@@ -511,21 +506,21 @@ function loadAccountView() {
     document.getElementById("account-name").innerText = state.currentUser.fullName;
     document.getElementById("account-address").innerText = state.currentUser.address;
 
-    if (state.rentals.length > 0) {
-        const latestRental = state.rentals[state.rentals.length - 1];
-        document.getElementById("account-contract-id").innerText = latestRental.id;
-        document.getElementById("account-rental-count").innerText = latestRental.items.length;
+    if (state.activeSubscription) {
+        const sub = state.activeSubscription;
+        document.getElementById("account-contract-id").innerText = sub.contractId;
+        document.getElementById("account-rental-count").innerText = sub.itemsCount;
 
         const rentalListDiv = document.getElementById("rental-list");
         rentalListDiv.innerHTML = "";
-        latestRental.items.forEach(item => {
+        sub.items.forEach(item => {
             const rentalItem = document.createElement("div");
             rentalItem.className = "rental-item";
             rentalItem.innerHTML = `
                 <h4>${item.brand} - ${item.name}</h4>
                 <p><strong>Categoria:</strong> ${item.category}</p>
-                <p><strong>Data de Entrega:</strong> ${latestRental.deliveryDate}</p>
-                <p><strong>Status:</strong> ${latestRental.status}</p>
+                <p><strong>Data de Entrega:</strong> ${sub.delivery.date}</p>
+                <p><strong>Status:</strong> Agendada</p>
             `;
             rentalListDiv.appendChild(rentalItem);
         });

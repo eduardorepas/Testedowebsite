@@ -1,4 +1,3 @@
-// Base de dados mock de eletrodomésticos premium (Conforme pedido)
 const appliancesData = [
     { id: "app-1", name: "Frigorífico Americano NoFrost", brand: "Samsung", category: "Cozinha", desc: "Capacidade de 634L com dispensador de água e gelo.", features: ["Classe E", "Inverter", "Digital Touch"] },
     { id: "app-2", name: "Máquina de Lavar Roupa EcoBubble", brand: "Samsung", category: "Lavandaria", desc: "Capacidade de 9kg com tecnologia de lavagem a frio inteligente.", features: ["9kg", "1400 rpm", "Wi-Fi"] },
@@ -10,28 +9,234 @@ const appliancesData = [
     { id: "app-8", name: "Placa de Indução FlexInduction", brand: "Siemens", category: "Cozinha", desc: "Zonas flexíveis que detetam automaticamente o formato dos recipientes.", features: ["4 Zonas", "Boost Control"] }
 ];
 
-// Inicialização do Estado (Carrega do LocalStorage se existir)
+const MAX_SLOTS = 8;
+const ANNUAL_PRICE = 1000;
+
 let state = {
-    cart: JSON.parse(localStorage.getItem('hl_cart')) || [],
+    isAuthenticated: false,
+    currentUser: null,
+    cart: [],
     currentCategory: "Todos",
-    searchQuery: ""
+    searchQuery: "",
+    rentals: []
 };
 
-const MAX_SLOTS = 8;
-
 document.addEventListener("DOMContentLoaded", () => {
+    loadFromStorage();
+    
+    if (state.isAuthenticated) {
+        showAuthenticatedUI();
+        initNavigation();
+        initCatalogFilters();
+        initSearch();
+        initCheckoutTriggers();
+        setupDeliveryDateConstraints();
+        renderCatalog();
+        renderCart();
+    } else {
+        showLoginUI();
+    }
+});
+
+function saveToStorage() {
+    const dataToSave = {
+        isAuthenticated: state.isAuthenticated,
+        currentUser: state.currentUser,
+        cart: state.cart,
+        rentals: state.rentals
+    };
+    localStorage.setItem('homeloop_state', JSON.stringify(dataToSave));
+}
+
+function loadFromStorage() {
+    const saved = localStorage.getItem('homeloop_state');
+    if (saved) {
+        const data = JSON.parse(saved);
+        state.isAuthenticated = data.isAuthenticated;
+        state.currentUser = data.currentUser;
+        state.cart = data.cart || [];
+        state.rentals = data.rentals || [];
+    }
+}
+
+function showLoginUI() {
+    document.getElementById('navbar-main').style.display = 'none';
+    document.getElementById('login-view').classList.remove('hidden');
+    document.querySelectorAll('.view-section').forEach(v => {
+        if (v.id !== 'login-view') v.classList.add('hidden');
+    });
+}
+
+function showAuthenticatedUI() {
+    document.getElementById('navbar-main').style.display = 'block';
+    document.getElementById('login-view').classList.add('hidden');
+    switchView('home-view');
+}
+
+async function handleLogin(event) {
+    event.preventDefault();
+    
+    const email = document.getElementById("login-email").value.trim();
+    const password = document.getElementById("login-password").value;
+    const errorDiv = document.getElementById("login-error");
+    
+    if (!email || !password) {
+        errorDiv.innerText = "Preencha todos os campos";
+        return;
+    }
+    
+    const users = JSON.parse(localStorage.getItem('homeloop_users')) || [];
+    const user = users.find(u => u.email === email);
+    
+    if (!user || !validatePassword(password, user.passwordHash)) {
+        errorDiv.innerText = "Email ou password inválido";
+        return;
+    }
+    
+    state.isAuthenticated = true;
+    state.currentUser = {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        address: user.address
+    };
+    
+    errorDiv.innerText = "";
+    saveToStorage();
+    showAuthenticatedUI();
     initNavigation();
     initCatalogFilters();
     initSearch();
     initCheckoutTriggers();
     setupDeliveryDateConstraints();
-    
-    // Renderização inicial
-    renderCatalog();
-    renderCart();
-});
+}
 
-// --- ROTEAMENTO E NAVEGAÇÃO ---
+async function handleRegister(event) {
+    event.preventDefault();
+    
+    const email = document.getElementById("register-email").value.trim();
+    const fullName = document.getElementById("register-fullname").value.trim();
+    const address = document.getElementById("register-address").value.trim();
+    const password = document.getElementById("register-password").value;
+    const passwordConfirm = document.getElementById("register-password-confirm").value;
+    const terms = document.getElementById("register-terms").checked;
+    const errorDiv = document.getElementById("register-error");
+    
+    if (!email || !fullName || !address || !password) {
+        errorDiv.innerText = "Preencha todos os campos";
+        return;
+    }
+    
+    if (password.length < 8) {
+        errorDiv.innerText = "Password deve ter no mínimo 8 caracteres";
+        return;
+    }
+    
+    if (!validatePasswordStrength(password)) {
+        errorDiv.innerText = "Password fraca. Use maiúsculas, minúsculas e números";
+        return;
+    }
+    
+    if (password !== passwordConfirm) {
+        errorDiv.innerText = "Passwords não coincidem";
+        return;
+    }
+    
+    if (!terms) {
+        errorDiv.innerText = "Deve aceitar os termos de serviço";
+        return;
+    }
+    
+    const users = JSON.parse(localStorage.getItem('homeloop_users')) || [];
+    if (users.find(u => u.email === email)) {
+        errorDiv.innerText = "Este email já está registado";
+        return;
+    }
+    
+    const newUser = {
+        id: "user-" + Math.random().toString(36).substr(2, 9),
+        email: email,
+        fullName: fullName,
+        address: address,
+        passwordHash: hashPassword(password),
+        createdAt: new Date().toISOString()
+    };
+    
+    users.push(newUser);
+    localStorage.setItem('homeloop_users', JSON.stringify(users));
+    
+    errorDiv.innerText = "";
+    alert("Conta criada com sucesso! Agora pode fazer login.");
+    switchAuthTab('login');
+}
+
+async function handleForgotPassword(event) {
+    event.preventDefault();
+    
+    const email = document.getElementById("forgot-email").value.trim();
+    const errorDiv = document.getElementById("forgot-error");
+    const successDiv = document.getElementById("forgot-success");
+    
+    const users = JSON.parse(localStorage.getItem('homeloop_users')) || [];
+    const user = users.find(u => u.email === email);
+    
+    if (!user) {
+        errorDiv.innerText = "Email não encontrado na base de dados";
+        successDiv.innerText = "";
+        return;
+    }
+    
+    const resetToken = Math.random().toString(36).substr(2, 9);
+    user.passwordResetToken = resetToken;
+    user.passwordResetExpiry = new Date(Date.now() + 24*60*60*1000).toISOString();
+    
+    users[users.indexOf(users.find(u => u.email === email))] = user;
+    localStorage.setItem('homeloop_users', JSON.stringify(users));
+    
+    errorDiv.innerText = "";
+    successDiv.innerText = `Link de recuperação enviado para ${email}. O link é válido por 24 horas.`;
+}
+
+function handleLogout() {
+    state.isAuthenticated = false;
+    state.currentUser = null;
+    state.cart = [];
+    state.currentCategory = "Todos";
+    state.searchQuery = "";
+    saveToStorage();
+    showLoginUI();
+}
+
+function validatePasswordStrength(password) {
+    const hasUpper = /[A-Z]/.test(password);
+    const hasLower = /[a-z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    return hasUpper && hasLower && hasNumber;
+}
+
+function validatePassword(plainPassword, hashedPassword) {
+    return hashPassword(plainPassword) === hashedPassword;
+}
+
+function hashPassword(password) {
+    return btoa(password);
+}
+
+function switchAuthTab(tab) {
+    document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+    document.querySelectorAll('.auth-tab-btn').forEach(b => b.classList.remove('active'));
+    
+    if (tab === 'login') {
+        document.getElementById('login-form').classList.add('active');
+        document.querySelectorAll('.auth-tab-btn')[0].classList.add('active');
+    } else if (tab === 'register') {
+        document.getElementById('register-form').classList.add('active');
+        document.querySelectorAll('.auth-tab-btn')[1].classList.add('active');
+    } else if (tab === 'forgot') {
+        document.getElementById('forgot-form').classList.add('active');
+    }
+}
+
 function initNavigation() {
     document.querySelectorAll(".nav-link").forEach(link => {
         link.addEventListener("click", (e) => {
@@ -51,14 +256,13 @@ function switchView(viewId) {
         else l.classList.remove("active");
     });
 
-    // Atualizações específicas ao entrar em vistas
     if (viewId === 'cart-view') renderCart();
+    if (viewId === 'account-view') loadAccountView();
     if (viewId === 'delivery-view') updateDeliveryPreview();
     
     window.scrollTo(0,0);
 }
 
-// --- FILTROS E PESQUISA (UC01 / UC01.1) ---
 function initCatalogFilters() {
     document.querySelectorAll(".filter-btn").forEach(btn => {
         btn.addEventListener("click", () => {
@@ -97,8 +301,7 @@ function renderCatalog() {
     filtered.forEach(item => {
         const isInCart = state.cart.some(cartItem => cartItem.id === item.id);
         const card = document.createElement("div");
-        card.className = "appance-card";
-        card.classList.add("appliance-card");
+        card.className = "appliance-card";
         
         card.innerHTML = `
             <div class="appliance-info">
@@ -118,22 +321,20 @@ function renderCatalog() {
         grid.appendChild(card);
     });
 
-    // Atualiza contador da navbar
     document.getElementById("cart-count").innerText = state.cart.length;
 }
 
-// --- GESTÃO DO PLANO/CARRINHO (UC03) ---
 function toggleCartItem(id) {
     const index = state.cart.findIndex(item => item.id === id);
     if (index > -1) {
         state.cart.splice(index, 1);
     } else {
-        if (state.cart.length >= MAX_SLOTS) return; // Proteção extra de limite
+        if (state.cart.length >= MAX_SLOTS) return;
         const item = appliancesData.find(a => a.id === id);
         state.cart.push(item);
     }
     
-    localStorage.setItem('hl_cart', JSON.stringify(state.cart));
+    saveToStorage();
     renderCatalog();
     renderCart();
 }
@@ -157,7 +358,6 @@ function renderCart() {
         const row = document.createElement("div");
         row.className = "step-card";
         row.style.display = "flex";
-        row.style.justifyContent = "nav-space-between";
         row.style.justifyContent = "space-between";
         row.style.alignItems = "center";
         row.style.marginBottom = "1rem";
@@ -186,28 +386,23 @@ function initCheckoutTriggers() {
     });
 }
 
-// --- VALIDAÇÃO DE DATAS E AGENDAMENTO (UC06 - Regra de Negócio Crítica) ---
 function setupDeliveryDateConstraints() {
     const dateInput = document.getElementById("delivery-date");
     const hint = document.getElementById("date-bounds-hint");
     
     const today = new Date();
     
-    // Calcula Data Mínima: Hoje + 7 dias
     const minDate = new Date();
     minDate.setDate(today.getDate() + 7);
     
-    // Calcula Data Máxima: Hoje + 30 dias
     const maxDate = new Date();
     maxDate.setDate(today.getDate() + 30);
 
-    // Formata para a propriedade string YYYY-MM-DD exigida pelo input do browser
     const formatDateStr = (d) => d.toISOString().split('T')[0];
 
     dateInput.min = formatDateStr(minDate);
     dateInput.max = formatDateStr(maxDate);
 
-    // Exibe ajuda visual para o utilizador e ajuda os testes automatizados a lerem os limites
     const options = { day: '2-digit', month: '2-digit', year: 'numeric' };
     hint.innerText = `Datas válidas entre: ${minDate.toLocaleDateString('pt-PT', options)} e ${maxDate.toLocaleDateString('pt-PT', options)}`;
 }
@@ -226,16 +421,31 @@ function updateDeliveryPreview() {
     });
 }
 
-// --- SUBMISSÃO E PROCESSAMENTO DE CONTRATO (UC04) ---
 function processCheckout(event) {
-    event.preventDefault(); // Bloqueia o reload tradicional da página
+    event.preventDefault();
 
-    const name = document.getElementById("client-name").value;
-    const address = document.getElementById("client-address").value;
+    const name = document.getElementById("client-name").value.trim();
+    const address = document.getElementById("client-address").value.trim();
     const date = document.getElementById("delivery-date").value;
     const slot = document.getElementById("delivery-slot").value;
 
-    // Dupla verificação programática da regra dos 7 a 30 dias (Segurança Extra para os testes)
+    if (!name) {
+        alert("Por favor, preencha o nome completo");
+        return;
+    }
+    if (!address) {
+        alert("Por favor, preencha a morada de entrega");
+        return;
+    }
+    if (!date) {
+        alert("Por favor, selecione uma data de entrega");
+        return;
+    }
+    if (!slot) {
+        alert("Por favor, selecione uma janela horária");
+        return;
+    }
+
     const selectedDate = new Date(date);
     const today = new Date();
     today.setHours(0,0,0,0);
@@ -245,49 +455,83 @@ function processCheckout(event) {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
     if (diffDays < 7 || diffDays > 30) {
-        alert("Erro: A data escolhida viola as regras comerciais da plataforma (deve ser entre 7 a 30 dias a contar de hoje).");
+        alert("Erro: A data escolhida viola as regras comerciais (deve ser entre 7 a 30 dias).");
         return;
     }
 
-    // Criar Objeto de Subscrição Concluída para simular o Registo na Base de Dados via LocalStorage
-    const orderReceipt = {
+    const subscription = {
         contractId: "HL-" + Math.floor(100000 + Math.random() * 900000),
         timestamp: new Date().toLocaleString('pt-PT'),
         client: { name, address },
         delivery: { date, slot },
-        price: "1000€/ano",
+        price: ANNUAL_PRICE + "€/ano",
         itemsCount: state.cart.length,
         items: state.cart.map(i => `${i.brand} ${i.name}`)
     };
 
-    // Salva o histórico final para auditoria local
-    localStorage.setItem('hl_active_subscription', JSON.stringify(orderReceipt));
+    const rental = {
+        id: subscription.contractId,
+        items: state.cart,
+        deliveryDate: date,
+        deliverySlot: slot,
+        status: "agendada"
+    };
+    
+    state.rentals.push(rental);
 
-    // Renderiza o ecrã de Sucesso
     const receiptDiv = document.getElementById("receipt-details");
     receiptDiv.innerHTML = `
-        <strong>Nº Contrato:</strong> ${orderReceipt.contractId}<br>
-        <strong>Data de Emissão:</strong> ${orderReceipt.timestamp}<br>
-        <strong>Titular:</strong> ${orderReceipt.client.name}<br>
-        <strong>Morada:</strong> ${orderReceipt.client.address}<br>
-        <strong>Janela de Entrega Agendada:</strong> ${orderReceipt.delivery.date} [${orderReceipt.delivery.slot}]<br>
-        <strong>Total Cobrado:</strong> ${orderReceipt.price}<br>
-        <strong>Equipamentos Rentabilizados (${orderReceipt.itemsCount}):</strong><br>
-        ${orderReceipt.items.map(title => ` - ${title}`).join('<br>')}
+        <strong>Nº Contrato:</strong> ${subscription.contractId}<br>
+        <strong>Data de Emissão:</strong> ${subscription.timestamp}<br>
+        <strong>Titular:</strong> ${subscription.client.name}<br>
+        <strong>Morada:</strong> ${subscription.client.address}<br>
+        <strong>Janela de Entrega Agendada:</strong> ${subscription.delivery.date} [${subscription.delivery.slot}]<br>
+        <strong>Total Cobrado:</strong> ${subscription.price}<br>
+        <strong>Equipamentos Rentabilizados (${subscription.itemsCount}):</strong><br>
+        ${subscription.items.map(title => ` - ${title}`).join('<br>')}
     `;
 
-    // Limpa o carrinho atual já subscrito
     state.cart = [];
-    localStorage.removeItem('hl_cart');
+    saveToStorage();
     document.getElementById("cart-count").innerText = 0;
 
     switchView('success-view');
 }
 
 function resetApp() {
-    localStorage.removeItem('hl_active_subscription');
-    // Força o reset visual dos inputs
     document.getElementById("delivery-form").reset();
     renderCatalog();
     switchView('home-view');
+}
+
+function loadAccountView() {
+    if (!state.currentUser) return;
+
+    document.getElementById("account-email").innerText = state.currentUser.email;
+    document.getElementById("account-name").innerText = state.currentUser.fullName;
+    document.getElementById("account-address").innerText = state.currentUser.address;
+
+    if (state.rentals.length > 0) {
+        const latestRental = state.rentals[state.rentals.length - 1];
+        document.getElementById("account-contract-id").innerText = latestRental.id;
+        document.getElementById("account-rental-count").innerText = latestRental.items.length;
+
+        const rentalListDiv = document.getElementById("rental-list");
+        rentalListDiv.innerHTML = "";
+        latestRental.items.forEach(item => {
+            const rentalItem = document.createElement("div");
+            rentalItem.className = "rental-item";
+            rentalItem.innerHTML = `
+                <h4>${item.brand} - ${item.name}</h4>
+                <p><strong>Categoria:</strong> ${item.category}</p>
+                <p><strong>Data de Entrega:</strong> ${latestRental.deliveryDate}</p>
+                <p><strong>Status:</strong> ${latestRental.status}</p>
+            `;
+            rentalListDiv.appendChild(rentalItem);
+        });
+    } else {
+        document.getElementById("account-contract-id").innerText = "-";
+        document.getElementById("account-rental-count").innerText = "0";
+        document.getElementById("rental-list").innerHTML = '<p class="hint-text">Nenhum equipamento alugado</p>';
+    }
 }

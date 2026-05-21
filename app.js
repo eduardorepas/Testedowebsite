@@ -38,8 +38,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 });
 
+function getStorageKey() {
+    return `homeloop_${state.currentUser?.id || 'guest'}`;
+}
+
 function saveToStorage() {
-    localStorage.setItem('homeloop_state', JSON.stringify({
+    const key = state.currentUser ? `homeloop_${state.currentUser.id}` : 'homeloop_guest';
+    localStorage.setItem(key, JSON.stringify({
         isAuthenticated: state.isAuthenticated,
         currentUser: state.currentUser,
         cart: state.cart,
@@ -50,11 +55,33 @@ function saveToStorage() {
 function loadFromStorage() {
     const saved = localStorage.getItem('homeloop_state');
     if (saved) {
-        const data = JSON.parse(saved);
-        state.isAuthenticated = data.isAuthenticated;
-        state.currentUser = data.currentUser;
-        state.cart = data.cart || [];
-        state.subscription = data.subscription || null;
+        try {
+            const data = JSON.parse(saved);
+            state.isAuthenticated = data.isAuthenticated;
+            state.currentUser = data.currentUser;
+            state.cart = data.cart || [];
+            state.subscription = data.subscription || null;
+            
+            if (state.currentUser) {
+                const userKey = `homeloop_${state.currentUser.id}`;
+                const userData = localStorage.getItem(userKey);
+                if (userData) {
+                    const parsed = JSON.parse(userData);
+                    state.cart = parsed.cart || [];
+                    state.subscription = parsed.subscription || null;
+                }
+            }
+        } catch (e) {
+            console.error("Erro ao carregar dados:", e);
+            state = {
+                isAuthenticated: false,
+                currentUser: null,
+                cart: [],
+                currentCategory: "Todos",
+                searchQuery: "",
+                subscription: null
+            };
+        }
     }
 }
 
@@ -93,14 +120,31 @@ async function handleLogin(event) {
     
     state.isAuthenticated = true;
     state.currentUser = { id: user.id, email: user.email, fullName: user.fullName, address: user.address };
+    
+    const userKey = `homeloop_${user.id}`;
+    const userData = localStorage.getItem(userKey);
+    if (userData) {
+        const parsed = JSON.parse(userData);
+        state.cart = parsed.cart || [];
+        state.subscription = parsed.subscription || null;
+    }
+    
     errorDiv.innerText = "";
-    saveToStorage();
+    localStorage.setItem('homeloop_state', JSON.stringify({
+        isAuthenticated: true,
+        currentUser: state.currentUser,
+        cart: state.cart,
+        subscription: state.subscription
+    }));
+    
     showAuthenticatedUI();
     initNavigation();
     initCatalogFilters();
     initSearch();
     initCheckoutTriggers();
     setupDeliveryDateConstraints();
+    renderCatalog();
+    renderCart();
 }
 
 async function handleRegister(event) {
@@ -151,6 +195,13 @@ async function handleRegister(event) {
     
     users.push(newUser);
     localStorage.setItem('homeloop_users', JSON.stringify(users));
+    
+    const userKey = `homeloop_${newUser.id}`;
+    localStorage.setItem(userKey, JSON.stringify({
+        cart: [],
+        subscription: null
+    }));
+    
     errorDiv.innerText = "";
     alert("Conta criada com sucesso! Agora pode fazer login.");
     switchAuthTab('login');
@@ -172,13 +223,9 @@ async function handleForgotPassword(event) {
         return;
     }
     
-    const resetToken = Math.random().toString(36).substr(2, 9);
-    user.passwordResetToken = resetToken;
-    user.passwordResetExpiry = new Date(Date.now() + 24*60*60*1000).toISOString();
-    users[users.indexOf(users.find(u => u.email === email))] = user;
-    localStorage.setItem('homeloop_users', JSON.stringify(users));
     errorDiv.innerText = "";
     successDiv.innerText = `Link de recuperação enviado para ${email}. O link é válido por 24 horas.`;
+    document.getElementById("forgot-form").reset();
 }
 
 function handleLogout() {
@@ -187,14 +234,17 @@ function handleLogout() {
     state.cart = [];
     state.currentCategory = "Todos";
     state.searchQuery = "";
-    saveToStorage();
+    state.subscription = null;
     
-    if (document.getElementById("login-form")) document.getElementById("login-form").reset();
-    if (document.getElementById("register-form")) document.getElementById("register-form").reset();
-    if (document.getElementById("forgot-form")) document.getElementById("forgot-form").reset();
-    if (document.getElementById("delivery-form")) document.getElementById("delivery-form").reset();
+    localStorage.removeItem('homeloop_state');
     
-    showLoginUI();
+    document.querySelectorAll('form').forEach(form => {
+        try { form.reset(); } catch(e) {}
+    });
+    
+    setTimeout(() => {
+        showLoginUI();
+    }, 100);
 }
 
 function validatePasswordStrength(password) {
@@ -305,7 +355,7 @@ function renderCatalog() {
                     ${item.features.map(f => `<span class="tag">${f}</span>`).join('')}
                 </div>
                 <button class="btn ${buttonClass}" 
-                        onclick="toggleCartItem('${item.id}')"
+                        onclick="handleRemoveClick('${item.id}', '${item.name}')"
                         ${isDisabled ? 'disabled' : ''}>
                     ${buttonText}
                 </button>
@@ -316,6 +366,19 @@ function renderCatalog() {
 
     const itemsToCount = state.subscription ? state.subscription.items : state.cart;
     document.getElementById("cart-count").innerText = itemsToCount.length;
+}
+
+function handleRemoveClick(id, itemName) {
+    const itemsToCheck = state.subscription ? state.subscription.items : state.cart;
+    const isInList = itemsToCheck.some(cartItem => cartItem.id === id);
+    
+    if (isInList) {
+        if (confirm(`Tem a certeza que deseja remover "${itemName}" do plano?`)) {
+            toggleCartItem(id);
+        }
+    } else {
+        toggleCartItem(id);
+    }
 }
 
 function toggleCartItem(id) {
@@ -356,6 +419,7 @@ function renderCart() {
         document.getElementById("checkout-btn").disabled = true;
         document.getElementById("checkout-warning").classList.remove("hidden");
         document.getElementById("summary-slots").innerText = `0 / ${MAX_SLOTS}`;
+        document.getElementById("checkout-btn").innerText = "Confirmar e Escolher Entrega";
         return;
     }
 
@@ -372,7 +436,7 @@ function renderCart() {
                 <span class="appliance-brand" style="font-size:0.75rem;">${item.category} • ${item.brand}</span>
                 <h4 style="color:var(--primary); margin-top:0.25rem;">${item.name}</h4>
             </div>
-            <button class="btn btn-outline-danger" style="width:auto; padding: 0.5rem 1rem;" onclick="toggleCartItem('${item.id}')">Remover</button>
+            <button class="btn btn-outline-danger" style="width:auto; padding: 0.5rem 1rem;" onclick="handleRemoveClick('${item.id}', '${item.name}')">Remover</button>
         `;
         container.appendChild(row);
     });

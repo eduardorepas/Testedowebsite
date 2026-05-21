@@ -1,3 +1,4 @@
+// ===== BASE DE DADOS DE ELETRODOMÉSTICOS =====
 const appliancesData = [
     { id: "app-1", name: "Frigorífico Americano NoFrost", brand: "Samsung", category: "Cozinha", desc: "Capacidade de 634L com dispensador de água e gelo.", features: ["Classe E", "Inverter", "Digital Touch"] },
     { id: "app-2", name: "Máquina de Lavar Roupa EcoBubble", brand: "Samsung", category: "Lavandaria", desc: "Capacidade de 9kg com tecnologia de lavagem a frio inteligente.", features: ["9kg", "1400 rpm", "Wi-Fi"] },
@@ -18,12 +19,11 @@ let state = {
     cart: [],
     currentCategory: "Todos",
     searchQuery: "",
-    activeSubscription: null
+    subscription: null
 };
 
 document.addEventListener("DOMContentLoaded", () => {
     loadFromStorage();
-    
     if (state.isAuthenticated) {
         showAuthenticatedUI();
         initNavigation();
@@ -39,13 +39,12 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 function saveToStorage() {
-    const dataToSave = {
+    localStorage.setItem('homeloop_state', JSON.stringify({
         isAuthenticated: state.isAuthenticated,
         currentUser: state.currentUser,
         cart: state.cart,
-        activeSubscription: state.activeSubscription
-    };
-    localStorage.setItem('homeloop_state', JSON.stringify(dataToSave));
+        subscription: state.subscription
+    }));
 }
 
 function loadFromStorage() {
@@ -55,15 +54,15 @@ function loadFromStorage() {
         state.isAuthenticated = data.isAuthenticated;
         state.currentUser = data.currentUser;
         state.cart = data.cart || [];
-        state.activeSubscription = data.activeSubscription || null;
+        state.subscription = data.subscription || null;
     }
 }
 
 function showLoginUI() {
     document.getElementById('navbar-main').style.display = 'none';
     document.getElementById('login-view').classList.remove('hidden');
-    document.querySelectorAll('.view-section:not(#login-view)').forEach(v => {
-        v.classList.add('hidden');
+    document.querySelectorAll('.view-section').forEach(v => {
+        if (v.id !== 'login-view') v.classList.add('hidden');
     });
 }
 
@@ -75,7 +74,6 @@ function showAuthenticatedUI() {
 
 async function handleLogin(event) {
     event.preventDefault();
-    
     const email = document.getElementById("login-email").value.trim();
     const password = document.getElementById("login-password").value;
     const errorDiv = document.getElementById("login-error");
@@ -94,13 +92,7 @@ async function handleLogin(event) {
     }
     
     state.isAuthenticated = true;
-    state.currentUser = {
-        id: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        address: user.address
-    };
-    
+    state.currentUser = { id: user.id, email: user.email, fullName: user.fullName, address: user.address };
     errorDiv.innerText = "";
     saveToStorage();
     showAuthenticatedUI();
@@ -113,7 +105,6 @@ async function handleLogin(event) {
 
 async function handleRegister(event) {
     event.preventDefault();
-    
     const email = document.getElementById("register-email").value.trim();
     const fullName = document.getElementById("register-fullname").value.trim();
     const address = document.getElementById("register-address").value.trim();
@@ -126,22 +117,18 @@ async function handleRegister(event) {
         errorDiv.innerText = "Preencha todos os campos";
         return;
     }
-    
     if (password.length < 8) {
         errorDiv.innerText = "Password deve ter no mínimo 8 caracteres";
         return;
     }
-    
     if (!validatePasswordStrength(password)) {
         errorDiv.innerText = "Password fraca. Use maiúsculas, minúsculas e números";
         return;
     }
-    
     if (password !== passwordConfirm) {
         errorDiv.innerText = "Passwords não coincidem";
         return;
     }
-    
     if (!terms) {
         errorDiv.innerText = "Deve aceitar os termos de serviço";
         return;
@@ -164,7 +151,6 @@ async function handleRegister(event) {
     
     users.push(newUser);
     localStorage.setItem('homeloop_users', JSON.stringify(users));
-    
     errorDiv.innerText = "";
     alert("Conta criada com sucesso! Agora pode fazer login.");
     switchAuthTab('login');
@@ -173,7 +159,6 @@ async function handleRegister(event) {
 
 async function handleForgotPassword(event) {
     event.preventDefault();
-    
     const email = document.getElementById("forgot-email").value.trim();
     const errorDiv = document.getElementById("forgot-error");
     const successDiv = document.getElementById("forgot-success");
@@ -190,10 +175,8 @@ async function handleForgotPassword(event) {
     const resetToken = Math.random().toString(36).substr(2, 9);
     user.passwordResetToken = resetToken;
     user.passwordResetExpiry = new Date(Date.now() + 24*60*60*1000).toISOString();
-    
     users[users.indexOf(users.find(u => u.email === email))] = user;
     localStorage.setItem('homeloop_users', JSON.stringify(users));
-    
     errorDiv.innerText = "";
     successDiv.innerText = `Link de recuperação enviado para ${email}. O link é válido por 24 horas.`;
 }
@@ -206,17 +189,16 @@ function handleLogout() {
     state.searchQuery = "";
     saveToStorage();
     
-    const forms = document.querySelectorAll('form');
-    forms.forEach(form => form.reset());
+    if (document.getElementById("login-form")) document.getElementById("login-form").reset();
+    if (document.getElementById("register-form")) document.getElementById("register-form").reset();
+    if (document.getElementById("forgot-form")) document.getElementById("forgot-form").reset();
+    if (document.getElementById("delivery-form")) document.getElementById("delivery-form").reset();
     
     showLoginUI();
 }
 
 function validatePasswordStrength(password) {
-    const hasUpper = /[A-Z]/.test(password);
-    const hasLower = /[a-z]/.test(password);
-    const hasNumber = /[0-9]/.test(password);
-    return hasUpper && hasLower && hasNumber;
+    return /[A-Z]/.test(password) && /[a-z]/.test(password) && /[0-9]/.test(password);
 }
 
 function validatePassword(plainPassword, hashedPassword) {
@@ -230,7 +212,6 @@ function hashPassword(password) {
 function switchAuthTab(tab) {
     document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
     document.querySelectorAll('.auth-tab-btn').forEach(b => b.classList.remove('active'));
-    
     if (tab === 'login') {
         document.getElementById('login-form').classList.add('active');
         document.querySelectorAll('.auth-tab-btn')[0].classList.add('active');
@@ -246,8 +227,7 @@ function initNavigation() {
     document.querySelectorAll(".nav-link").forEach(link => {
         link.addEventListener("click", (e) => {
             e.preventDefault();
-            const targetView = link.getAttribute("data-target");
-            switchView(targetView);
+            switchView(link.getAttribute("data-target"));
         });
     });
 }
@@ -255,16 +235,12 @@ function initNavigation() {
 function switchView(viewId) {
     document.querySelectorAll(".view-section").forEach(sec => sec.classList.add("hidden"));
     document.getElementById(viewId).classList.remove("hidden");
-    
     document.querySelectorAll(".nav-link").forEach(l => {
-        if(l.getAttribute("data-target") === viewId) l.classList.add("active");
-        else l.classList.remove("active");
+        l.getAttribute("data-target") === viewId ? l.classList.add("active") : l.classList.remove("active");
     });
-
     if (viewId === 'cart-view') renderCart();
     if (viewId === 'account-view') loadAccountView();
     if (viewId === 'delivery-view') updateDeliveryPreview();
-    
     window.scrollTo(0,0);
 }
 
@@ -289,7 +265,6 @@ function initSearch() {
 function renderCatalog() {
     const grid = document.getElementById("appliances-grid");
     grid.innerHTML = "";
-
     const filtered = appliancesData.filter(item => {
         const matchesCategory = state.currentCategory === "Todos" || item.category === state.currentCategory;
         const matchesSearch = item.name.toLowerCase().includes(state.searchQuery) || 
@@ -304,10 +279,23 @@ function renderCatalog() {
     }
 
     filtered.forEach(item => {
-        const isInCart = state.cart.some(cartItem => cartItem.id === item.id);
+        const itemsToCheck = state.subscription ? state.subscription.items : state.cart;
+        const isInList = itemsToCheck.some(cartItem => cartItem.id === item.id);
         const card = document.createElement("div");
         card.className = "appliance-card";
         
+        let buttonText = 'Adicionar ao Plano';
+        let buttonClass = 'btn-accent';
+        let isDisabled = false;
+
+        if (isInList) {
+            buttonText = 'Remover do Plano';
+            buttonClass = 'btn-outline-danger';
+        } else if (itemsToCheck.length >= MAX_SLOTS) {
+            buttonText = 'Plano Cheio';
+            isDisabled = true;
+        }
+
         card.innerHTML = `
             <div class="appliance-info">
                 <span class="appliance-brand">${item.brand}</span>
@@ -316,29 +304,40 @@ function renderCatalog() {
                 <div class="features-tags">
                     ${item.features.map(f => `<span class="tag">${f}</span>`).join('')}
                 </div>
-                <button class="btn ${isInCart ? 'btn-outline-danger' : 'btn-accent'}" 
+                <button class="btn ${buttonClass}" 
                         onclick="toggleCartItem('${item.id}')"
-                        ${!isInCart && state.cart.length >= MAX_SLOTS ? 'disabled' : ''}>
-                    ${isInCart ? 'Remover do Plano' : (state.cart.length >= MAX_SLOTS ? 'Plano Cheio' : 'Adicionar ao Plano')}
+                        ${isDisabled ? 'disabled' : ''}>
+                    ${buttonText}
                 </button>
             </div>
         `;
         grid.appendChild(card);
     });
 
-    document.getElementById("cart-count").innerText = state.cart.length;
+    const itemsToCount = state.subscription ? state.subscription.items : state.cart;
+    document.getElementById("cart-count").innerText = itemsToCount.length;
 }
 
 function toggleCartItem(id) {
-    const index = state.cart.findIndex(item => item.id === id);
-    if (index > -1) {
-        state.cart.splice(index, 1);
+    if (state.subscription) {
+        const index = state.subscription.items.findIndex(item => item.id === id);
+        if (index > -1) {
+            state.subscription.items.splice(index, 1);
+        } else {
+            if (state.subscription.items.length >= MAX_SLOTS) return;
+            const item = appliancesData.find(a => a.id === id);
+            state.subscription.items.push(item);
+        }
     } else {
-        if (state.cart.length >= MAX_SLOTS) return;
-        const item = appliancesData.find(a => a.id === id);
-        state.cart.push(item);
+        const index = state.cart.findIndex(item => item.id === id);
+        if (index > -1) {
+            state.cart.splice(index, 1);
+        } else {
+            if (state.cart.length >= MAX_SLOTS) return;
+            const item = appliancesData.find(a => a.id === id);
+            state.cart.push(item);
+        }
     }
-    
     saveToStorage();
     renderCatalog();
     renderCart();
@@ -347,8 +346,9 @@ function toggleCartItem(id) {
 function renderCart() {
     const container = document.getElementById("cart-items-container");
     container.innerHTML = "";
+    const itemsToShow = state.subscription ? state.subscription.items : state.cart;
 
-    if (state.cart.length === 0) {
+    if (itemsToShow.length === 0) {
         container.innerHTML = `<div style="text-align:center; padding: 3rem 1rem; color: #6b7280;">
             <p>O seu plano anual ainda está vazio.</p>
             <button class="btn btn-primary" style="width:auto; margin-top:1rem;" onclick="switchView('catalog-view')">Ir para o Catálogo</button>
@@ -359,7 +359,7 @@ function renderCart() {
         return;
     }
 
-    state.cart.forEach(item => {
+    itemsToShow.forEach(item => {
         const row = document.createElement("div");
         row.className = "step-card";
         row.style.display = "flex";
@@ -367,7 +367,6 @@ function renderCart() {
         row.style.alignItems = "center";
         row.style.marginBottom = "1rem";
         row.style.padding = "1.25rem";
-
         row.innerHTML = `
             <div>
                 <span class="appliance-brand" style="font-size:0.75rem;">${item.category} • ${item.brand}</span>
@@ -378,15 +377,23 @@ function renderCart() {
         container.appendChild(row);
     });
 
-    document.getElementById("summary-slots").innerText = `${state.cart.length} / ${MAX_SLOTS}`;
+    document.getElementById("summary-slots").innerText = `${itemsToShow.length} / ${MAX_SLOTS}`;
     document.getElementById("checkout-btn").disabled = false;
     document.getElementById("checkout-warning").classList.add("hidden");
+    document.getElementById("checkout-btn").innerText = state.subscription ? "Guardar Alterações" : "Confirmar e Escolher Entrega";
 }
 
 function initCheckoutTriggers() {
     document.getElementById("checkout-btn").addEventListener("click", () => {
-        if(state.cart.length > 0) {
-            switchView('delivery-view');
+        const itemsToCheck = state.subscription ? state.subscription.items : state.cart;
+        if (itemsToCheck.length > 0) {
+            if (state.subscription) {
+                saveToStorage();
+                alert("Alterações guardadas com sucesso!");
+                switchView('account-view');
+            } else {
+                switchView('delivery-view');
+            }
         }
     });
 }
@@ -394,20 +401,14 @@ function initCheckoutTriggers() {
 function setupDeliveryDateConstraints() {
     const dateInput = document.getElementById("delivery-date");
     const hint = document.getElementById("date-bounds-hint");
-    
     const today = new Date();
-    
     const minDate = new Date();
     minDate.setDate(today.getDate() + 7);
-    
     const maxDate = new Date();
     maxDate.setDate(today.getDate() + 30);
-
     const formatDateStr = (d) => d.toISOString().split('T')[0];
-
     dateInput.min = formatDateStr(minDate);
     dateInput.max = formatDateStr(maxDate);
-
     const options = { day: '2-digit', month: '2-digit', year: 'numeric' };
     hint.innerText = `Datas válidas entre: ${minDate.toLocaleDateString('pt-PT', options)} e ${maxDate.toLocaleDateString('pt-PT', options)}`;
 }
@@ -415,7 +416,6 @@ function setupDeliveryDateConstraints() {
 function updateDeliveryPreview() {
     const previewContainer = document.getElementById("delivery-preview-items");
     previewContainer.innerHTML = "";
-    
     state.cart.forEach(item => {
         const p = document.createElement("p");
         p.style.fontSize = "0.9rem";
@@ -428,26 +428,13 @@ function updateDeliveryPreview() {
 
 function processCheckout(event) {
     event.preventDefault();
-
     const name = document.getElementById("client-name").value.trim();
     const address = document.getElementById("client-address").value.trim();
     const date = document.getElementById("delivery-date").value;
     const slot = document.getElementById("delivery-slot").value;
 
-    if (!name) {
-        alert("Por favor, preencha o nome completo");
-        return;
-    }
-    if (!address) {
-        alert("Por favor, preencha a morada de entrega");
-        return;
-    }
-    if (!date) {
-        alert("Por favor, selecione uma data de entrega");
-        return;
-    }
-    if (!slot) {
-        alert("Por favor, selecione uma janela horária");
+    if (!name || !address || !date || !slot) {
+        alert("Por favor, preencha todos os campos");
         return;
     }
 
@@ -455,7 +442,6 @@ function processCheckout(event) {
     const today = new Date();
     today.setHours(0,0,0,0);
     selectedDate.setHours(0,0,0,0);
-
     const diffTime = Math.abs(selectedDate - today);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
@@ -464,31 +450,28 @@ function processCheckout(event) {
         return;
     }
 
-    const subscription = {
+    state.subscription = {
         contractId: "HL-" + Math.floor(100000 + Math.random() * 900000),
         timestamp: new Date().toLocaleString('pt-PT'),
         client: { name, address },
         delivery: { date, slot },
         price: ANNUAL_PRICE + "€/ano",
-        itemsCount: state.cart.length,
         items: state.cart.map(i => ({ ...i }))
     };
 
-    state.activeSubscription = subscription;
-    state.cart = [];
-
     const receiptDiv = document.getElementById("receipt-details");
     receiptDiv.innerHTML = `
-        <strong>Nº Contrato:</strong> ${subscription.contractId}<br>
-        <strong>Data de Emissão:</strong> ${subscription.timestamp}<br>
-        <strong>Titular:</strong> ${subscription.client.name}<br>
-        <strong>Morada:</strong> ${subscription.client.address}<br>
-        <strong>Janela de Entrega Agendada:</strong> ${subscription.delivery.date} [${subscription.delivery.slot}]<br>
-        <strong>Total Cobrado:</strong> ${subscription.price}<br>
-        <strong>Equipamentos Rentabilizados (${subscription.itemsCount}):</strong><br>
-        ${subscription.items.map(title => ` - ${title.brand} ${title.name}`).join('<br>')}
+        <strong>Nº Contrato:</strong> ${state.subscription.contractId}<br>
+        <strong>Data de Emissão:</strong> ${state.subscription.timestamp}<br>
+        <strong>Titular:</strong> ${state.subscription.client.name}<br>
+        <strong>Morada:</strong> ${state.subscription.client.address}<br>
+        <strong>Janela de Entrega Agendada:</strong> ${state.subscription.delivery.date} [${state.subscription.delivery.slot}]<br>
+        <strong>Total Cobrado:</strong> ${state.subscription.price}<br>
+        <strong>Equipamentos Rentabilizados (${state.subscription.items.length}):</strong><br>
+        ${state.subscription.items.map(title => ` - ${title.brand} ${title.name}`).join('<br>')}
     `;
 
+    state.cart = [];
     saveToStorage();
     switchView('success-view');
 }
@@ -501,32 +484,29 @@ function resetApp() {
 
 function loadAccountView() {
     if (!state.currentUser) return;
-
     document.getElementById("account-email").innerText = state.currentUser.email;
     document.getElementById("account-name").innerText = state.currentUser.fullName;
     document.getElementById("account-address").innerText = state.currentUser.address;
 
-    if (state.activeSubscription) {
-        const sub = state.activeSubscription;
-        document.getElementById("account-contract-id").innerText = sub.contractId;
-        document.getElementById("account-rental-count").innerText = sub.itemsCount;
-
+    if (state.subscription) {
+        document.getElementById("account-contract-id").innerText = state.subscription.contractId;
+        document.getElementById("account-rental-count").innerText = state.subscription.items.length;
         const rentalListDiv = document.getElementById("rental-list");
         rentalListDiv.innerHTML = "";
-        sub.items.forEach(item => {
+        state.subscription.items.forEach(item => {
             const rentalItem = document.createElement("div");
             rentalItem.className = "rental-item";
             rentalItem.innerHTML = `
                 <h4>${item.brand} - ${item.name}</h4>
                 <p><strong>Categoria:</strong> ${item.category}</p>
-                <p><strong>Data de Entrega:</strong> ${sub.delivery.date}</p>
-                <p><strong>Status:</strong> Agendada</p>
+                <p><strong>Data de Entrega:</strong> ${state.subscription.delivery.date}</p>
+                <p><strong>Status:</strong> Ativo</p>
             `;
             rentalListDiv.appendChild(rentalItem);
         });
     } else {
         document.getElementById("account-contract-id").innerText = "-";
         document.getElementById("account-rental-count").innerText = "0";
-        document.getElementById("rental-list").innerHTML = '<p class="hint-text">Nenhum equipamento alugado</p>';
+        document.getElementById("rental-list").innerHTML = '<p class="hint-text">Nenhuma subscrição ativa</p>';
     }
 }

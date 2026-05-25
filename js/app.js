@@ -1,187 +1,9 @@
-// ====== ESTADO VOLÁTIL DE INTERFACE ======
-window.currentSearch = '';
-window.currentCategory = 'Todos';
-
-// Estado temporário para o formulário de agendamento em curso
-window.activeDeliveryForm = {
-  applianceId: null,
-  date: '',
-  address: ''
-};
-
-// ====== EVENTO DE CAPTURA DE LINKS DATA-NAV ======
-document.addEventListener('click', e => {
-  const target = e.target.closest('[data-nav]');
-  if (target) {
-    e.preventDefault();
-    navigate(target.dataset.nav);
-  }
-});
-
-// ====== FUNÇÃO AUXILIAR DE PESQUISA (US1.3 - Cenário 2) ======
-function handleSearchKeyDown(e, inputEl) {
-  if (e.key === 'Enter') {
-    window.currentSearch = inputEl.value.trim();
-    renderPage(location.pathname);
-  }
-}
-
-function handleCategoryFilter(category) {
-  window.currentCategory = category;
-  renderPage(location.pathname);
-}
-
-// ====== FLUXOS DE AÇÃO DAS USER STORIES ======
-
-// US1.1: Subscrição e Pagamento
-function executePaymentSimulation(scenario) {
-  const state = getState();
-  const plan = getCurrentPlan();
-  
-  if (!plan) {
-    alert("Por favor, selecione um plano na página de planos antes de proceder ao pagamento.");
-    return;
-  }
-
-  if (scenario === 'success') {
-    confirmSubscription();
-    alert(`Pagamento de €${plan.price} efetuado com sucesso! Tem agora 1 ano de subscrição ativo. Pode escolher até ${plan.maxAppliances} eletrodomésticos.`);
-    navigate('/appliances');
-  } else {
-    // Cenário 2 - Falha de Pagamento
-    const errEl = document.getElementById('pay-error-msg');
-    if (errEl) {
-      errEl.textContent = "Erro! O cartão inserido foi recusado devido a saldo insuficiente. Corrija o problema para obter o ano de subscrição.";
-      errEl.classList.add('show');
-    }
-  }
-}
-
-// US1.2: Agendamento de Entregas
-function handleOpenSchedule(applianceId) {
-  const state = getState();
-  const plan = getCurrentPlan();
-  
-  // US1.2 - Cenário 3: Limite Atingido
-  if (plan && state.selectedIds.length >= plan.maxAppliances && !state.selectedIds.includes(applianceId)) {
-    alert(`Limite de eletrodomésticos já atingido! Se quiser este eletrodoméstico terá de anular o aluguer de um dos seus eletrodomésticos previamente escolhidos.`);
-    return;
-  }
-
-  window.activeDeliveryForm.applianceId = applianceId;
-  navigate('/delivery');
-}
-
-function executeScheduleSimulation(scenario) {
-  const form = window.activeDeliveryForm;
-  if (!form.applianceId || !form.date || !form.address) {
-    alert("Por favor, preencha todos os campos do agendamento (Data e Morada).");
-    return;
-  }
-
-  const appliance = APPLIANCES.find(a => a.id === form.applianceId);
-
-  if (scenario === 'success') {
-    // Simulação de Erro de Catálogo Ocasional (US1.2 - Cenário 2)
-    // Se tentarmos agendar o aparelho "a10", vamos simular que ele saiu do catálogo
-    if (form.applianceId === 'a10') {
-      alert(`Erro! É possível o ${appliance.name} já ter sido alugado ou ter saído do catálogo, tente escolher outro.`);
-      return;
-    }
-
-    // Adiciona ao plano se ainda não estiver lá dentro
-    addAppliance(form.applianceId);
-    
-    // Grava a entrega logística
-    saveDelivery({
-      applianceId: form.applianceId,
-      applianceName: appliance.name,
-      date: form.date,
-      address: form.address,
-      status: 'Confirmada'
-    });
-
-    alert(`O ${appliance.name} será entregue na ${form.date}. Agendamento efetuado!`);
-    
-    // Reseta formulário temporário
-    window.activeDeliveryForm = { applianceId: null, date: '', address: '' };
-    navigate('/dashboard');
-  }
-}
-
-// US1.4: Anulação com Upload de Foto e Estado do Aparelho
-function executeCancellation(applianceId) {
-  const appliance = APPLIANCES.find(a => a.id === applianceId);
-  if (!appliance) return;
-
-  const fileInput = document.getElementById(`photo-${applianceId}`);
-  if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
-    alert("Por favor, selecione primeiro uma imagem com o estado atual do equipamento.");
-    return;
-  }
-
-  const isDamaged = document.getElementById(`condition-${applianceId}`).checked;
-  const dateField = document.getElementById(`ret-date-${applianceId}`).value;
-
-  if (!dateField) {
-    alert("Por favor, selecione a data pretendida para a recolha.");
-    return;
-  }
-
-  cancelAppliance(applianceId);
-
-  if (isDamaged) {
-    // US1.4 - Cenário 2: Mau estado
-    alert(`O ${appliance.name} não está em bom estado, portanto, será devolvido na ${dateField}, mas terás de pagar o valor de €${(600 / 2)} (metade do valor padrão do aparelho).`);
-  } else {
-    // US1.4 - Cenário 1: Bom estado
-    alert(`O ${appliance.name} será devolvido na ${dateField}. Agendamento de recolha efetuado com sucesso!`);
-  }
-
-  renderPage(location.pathname);
-}
-
-// US1.5: Recebimento e Notificação Logística
-function triggerDeliveryStatusUpdate(index, newStatus) {
-  const state = getState();
-  if (!state.deliveries || !state.deliveries[index]) return;
-
-  state.deliveries[index].status = newStatus;
-  saveState(state);
-
-  if (newStatus === 'Entregue') {
-    alert(`Notificação Enviada: "${state.deliveries[index].applianceName} entregue". O aparelho pode ser instalado agora.`);
-  } else if (newStatus === 'Adiada') {
-    alert("Simulação: Email enviado para o João a alertar que a HomeLoop não consegue entregar na data. O João terá de redefinir o agendamento.");
-  }
-
-  renderPage(location.pathname);
-}
-
-function handleRescheduleDelivery(index, newDate) {
-  const state = getState();
-  if (!state.deliveries || !state.deliveries[index]) return;
-  
-  if(!newDate) {
-    alert("Insira uma nova data válida.");
-    return;
-  }
-
-  state.deliveries[index].date = newDate;
-  state.deliveries[index].status = 'Confirmada';
-  saveState(state);
-  
-  alert(`Data remarcada com sucesso para: ${newDate}`);
-  renderPage(location.pathname);
-}
-
-// ─── COMPLEMENTO REBOUT SPA MOTOR ───────────────────────────────────────────
+// ─── ROUTER ──────────────────────────────────────────────────────────────────
 function navigate(path) {
   const pub = ['/', '/login', '/register'];
   if (!pub.includes(path) && !isLoggedIn()) {
     history.pushState(null, '', '/login');
-    renderPage('/login'); 
-    return;
+    renderPage('/login'); return;
   }
   history.pushState(null, '', path);
   renderPage(path);
@@ -195,18 +17,15 @@ function renderPage(path) {
     history.replaceState(null, '', '/login');
   }
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  
   const map = {
     '/':'page-home', '/login':'page-login', '/register':'page-register',
     '/plans':'page-plans', '/appliances':'page-appliances',
     '/subscription':'page-subscription', '/delivery':'page-delivery',
     '/dashboard':'page-dashboard',
   };
-  
   const el = document.getElementById(map[path] || 'page-home');
   if (el) el.classList.add('active');
   updateNavbar();
-  
   switch(path) {
     case '/':             renderHome();         break;
     case '/login':        renderLogin();        break;
@@ -220,3 +39,163 @@ function renderPage(path) {
 }
 
 window.addEventListener('popstate', () => renderPage(location.pathname));
+document.addEventListener('click', e => {
+  const a = e.target.closest('[data-nav]');
+  if (a) { e.preventDefault(); navigate(a.dataset.nav); }
+});
+
+// ─── NAVBAR ──────────────────────────────────────────────────────────────────
+function updateNavbar() {
+  const root = document.getElementById('navbar-root');
+  if (!root) return;
+  const loggedIn = isLoggedIn();
+  const user = getCurrentUser();
+  const path = location.pathname;
+  const selected = getSelectedAppliances();
+
+  const lnk = (label, to, extra='') =>
+    `<button class="nb-link ${path===to?'active':''}" data-nav="${to}" ${extra}>${label}</button>`;
+
+  root.innerHTML = `
+  <nav class="navbar">
+    <div class="nb-inner">
+      <div class="nb-logo" data-nav="/">Home<span>Loop</span></div>
+      <div class="nb-links">
+        ${lnk('Início','/')}
+        ${loggedIn ? `
+          ${lnk('Catálogo','/appliances')}
+          ${lnk('Planos','/plans')}
+          ${lnk('Subscrição','/subscription')}
+        ` : ''}
+      </div>
+      <div class="nb-right">
+        ${loggedIn ? `
+          <span class="nb-user">Olá, <strong>${user.name.split(' ')[0]}</strong></span>
+          ${selected.length > 0 ? `
+            <button class="nb-cart" data-nav="/subscription">
+              🛒 O Meu Plano
+              <span class="cart-badge">${selected.length}</span>
+            </button>` : ''}
+          <button class="btn-logout" onclick="handleLogout()">Sair</button>
+        ` : `
+          <button class="nb-link" data-nav="/login">Entrar</button>
+          <button class="btn nb-cta" data-nav="/register">Registar-se</button>
+        `}
+      </div>
+      <button class="nb-burger" onclick="toggleMobile()">☰</button>
+    </div>
+    <div class="nb-mobile" id="nb-mobile">
+      ${loggedIn ? `
+        <button data-nav="/">Início</button>
+        <button data-nav="/appliances">Catálogo</button>
+        <button data-nav="/plans">Planos</button>
+        <button data-nav="/subscription">Subscrição</button>
+        <button data-nav="/dashboard">O Meu Painel</button>
+        <button onclick="handleLogout()" style="color:var(--red)">Sair</button>
+      ` : `
+        <button data-nav="/">Início</button>
+        <button data-nav="/login">Entrar</button>
+        <button data-nav="/register">Registar-se</button>
+      `}
+    </div>
+  </nav>`;
+}
+
+function toggleMobile() {
+  document.getElementById('nb-mobile')?.classList.toggle('open');
+}
+function handleLogout() { logout(); navigate('/'); }
+
+// ─── FOOTER ──────────────────────────────────────────────────────────────────
+function renderFooter() {
+  return `
+  <footer style="background:var(--navy);color:white;margin-top:auto">
+    <div style="max-width:1280px;margin:0 auto;padding:3rem 1.5rem">
+      <div style="display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:2rem;flex-wrap:wrap">
+        <div>
+          <div style="font-family:'Sora',sans-serif;font-size:1.25rem;font-weight:700;margin-bottom:.875rem">
+            Home<span style="color:var(--teal)">Loop</span>
+          </div>
+          <p style="color:#94a3b8;font-size:.82rem;line-height:1.6">
+            A forma mais inteligente de equipar a sua casa. Eletrodomésticos premium com entrega, instalação e manutenção incluídas.
+          </p>
+        </div>
+        <div>
+          <h4 style="font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:#cbd5e1;margin-bottom:.875rem">Produto</h4>
+          ${['Catálogo,/appliances','Planos,/plans','Subscrição,/subscription'].map(i=>{
+            const [l,p]=i.split(',');
+            return `<button data-nav="${p}" style="display:block;background:none;border:none;cursor:pointer;color:#94a3b8;font-size:.82rem;margin-bottom:7px;font-family:'DM Sans',sans-serif;text-align:left">${l}</button>`;
+          }).join('')}
+        </div>
+        <div>
+          <h4 style="font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:#cbd5e1;margin-bottom:.875rem">Empresa</h4>
+          ${['Sobre Nós','Carreiras','Blog'].map(i=>`<a href="#" style="display:block;color:#94a3b8;font-size:.82rem;margin-bottom:7px">${i}</a>`).join('')}
+        </div>
+        <div>
+          <h4 style="font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:#cbd5e1;margin-bottom:.875rem">Suporte</h4>
+          ${['Centro de Ajuda','Contacte-nos','Privacidade'].map(i=>`<a href="#" style="display:block;color:#94a3b8;font-size:.82rem;margin-bottom:7px">${i}</a>`).join('')}
+        </div>
+      </div>
+      <div style="margin-top:2.5rem;padding-top:1.5rem;border-top:1px solid #334155;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <p style="color:#64748b;font-size:.78rem">© 2026 HomeLoop. Todos os direitos reservados.</p>
+        <p style="color:#64748b;font-size:.78rem">alugar com inteligência · viver melhor</p>
+      </div>
+    </div>
+  </footer>`;
+}
+
+// ─── APPLIANCE CARD ──────────────────────────────────────────────────────────
+function appCard(a, showCancel = false) {
+  const sel = isSelected(a.id);
+  const plan = getCurrentPlan();
+  const state = getState();
+  const full = plan && state.selectedIds.length >= plan.maxAppliances;
+  const icon = CATEGORY_ICONS[a.category] || '📦';
+
+  let btnClass, btnLabel;
+  if (!plan)       { btnClass='no-plan';  btnLabel='Escolha um plano primeiro'; }
+  else if (sel)    { btnClass='is-added'; btnLabel='✓ Adicionado — clique para remover'; }
+  else if (full)   { btnClass='is-full';  btnLabel=`Plano completo (${plan.maxAppliances}/${plan.maxAppliances})`; }
+  else             { btnClass='can-add';  btnLabel='Adicionar à subscrição'; }
+
+  return `
+  <div class="app-card ${sel?'selected':''}" id="ac-${a.id}">
+    <div class="app-img">
+      <img src="${a.image}" alt="${a.name}" loading="lazy"
+        onerror="this.src='https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=300&fit=crop'">
+      <div class="app-cat">${icon} ${a.category}</div>
+      ${sel ? '<div class="app-check">✓</div>' : ''}
+    </div>
+    <div class="app-body">
+      <div class="app-brand">${a.brand}</div>
+      <div class="app-name">${a.name}</div>
+      <div class="app-desc">${a.description}</div>
+      <div class="app-feats">${a.features.map(f=>`<span class="app-feat">${f}</span>`).join('')}</div>
+      ${showCancel ? `
+        <button class="btn-add" style="background:#fee2e2;color:var(--red);border:1px solid #fca5a5"
+          onclick="handleCancelAppliance('${a.id}')">
+          ✕ Anular aluguer
+        </button>` : `
+        <button class="btn-add ${btnClass}" onclick="toggleApp('${a.id}')"
+          ${btnClass==='is-full'||btnClass==='no-plan'?'disabled':''}>
+          ${btnLabel}
+        </button>`}
+    </div>
+  </div>`;
+}
+
+function toggleApp(id) {
+  if (!getCurrentPlan()) { navigate('/plans'); return; }
+  if (isSelected(id)) removeAppliance(id);
+  else addAppliance(id);
+  renderPage(location.pathname);
+}
+
+function handleCancelAppliance(id) {
+  const a = APPLIANCES.find(x => x.id === id);
+  if (!a) return;
+  if (confirm(`Tem a certeza que quer anular o aluguer de "${a.name}"? Esta ação remove o equipamento do seu plano.`)) {
+    cancelAppliance(id);
+    renderPage(location.pathname);
+  }
+}

@@ -1,259 +1,35 @@
 <!DOCTYPE html>
-<html lang="pt">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HomeLoop - Eletrodomésticos as a Service</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <nav class="navbar" id="navbar-main" style="display: none;">
-        <div class="nav-container">
-            <a href="#" class="logo" onclick="switchView('home-view'); return false;">HomeLoop</a>
-            <div class="nav-links">
-                <a href="#" class="nav-link active" data-target="home-view">Início</a>
-                <a href="#" class="nav-link" data-target="catalog-view">Eletrodomésticos</a>
-                <a href="#" class="nav-link" data-target="cart-view" id="nav-cart-link">O Meu Plano (<span id="cart-count">0</span>)</a>
-                <a href="#" class="nav-link" data-target="account-view">Minha Conta</a>
-                <a href="#" class="nav-link" onclick="handleLogout(); return false;">Sair</a>
-            </div>
-        </div>
-    </nav>
-
-    <main class="app-container">
-        <section id="login-view" class="view-section auth-container">
-            <div class="auth-card">
-                <h1>HomeLoop</h1>
-                <p class="auth-subtitle">Alugue eletrodomésticos premium sem complicações</p>
-                
-                <div class="auth-tabs">
-                    <button class="auth-tab-btn active" onclick="switchAuthTab('login')">Entrar</button>
-                    <button class="auth-tab-btn" onclick="switchAuthTab('register')">Criar Conta</button>
-                </div>
-
-                <form id="login-form" class="auth-form active" onsubmit="handleLogin(event)">
-                    <div class="form-group">
-                        <label for="login-email">Email</label>
-                        <input type="email" id="login-email" required placeholder="seu@email.com">
-                    </div>
-                    <div class="form-group">
-                        <label for="login-password">Password</label>
-                        <input type="password" id="login-password" required placeholder="••••••••">
-                    </div>
-                    <div id="login-error" class="error-message"></div>
-                    <button type="submit" class="btn btn-primary btn-block">Entrar</button>
-                    <p class="auth-link">
-                        <a href="#" onclick="switchAuthTab('forgot'); return false;">Esqueceu a password?</a>
-                    </p>
-                </form>
-
-                <form id="register-form" class="auth-form" onsubmit="handleRegister(event)">
-                    <div class="form-group">
-                        <label for="register-email">Email</label>
-                        <input type="email" id="register-email" required placeholder="seu@email.com">
-                    </div>
-                    <div class="form-group">
-                        <label for="register-fullname">Nome Completo</label>
-                        <input type="text" id="register-fullname" required placeholder="João Silva">
-                    </div>
-                    <div class="form-group">
-                        <label for="register-address">Morada</label>
-                        <input type="text" id="register-address" required placeholder="Rua X, nº 123, Cidade">
-                    </div>
-                    <div class="form-group">
-                        <label for="register-password">Password</label>
-                        <input type="password" id="register-password" required placeholder="Min. 8 caracteres" minlength="8">
-                        <small class="password-hint">Deve conter maiúsculas, minúsculas e números</small>
-                    </div>
-                    <div class="form-group">
-                        <label for="register-password-confirm">Confirmar Password</label>
-                        <input type="password" id="register-password-confirm" required placeholder="••••••••">
-                    </div>
-                    <div class="form-group checkbox">
-                        <label>
-                            <input type="checkbox" id="register-terms" required>
-                            Aceito os <a href="#">termos de serviço</a>
-                        </label>
-                    </div>
-                    <div id="register-error" class="error-message"></div>
-                    <button type="submit" class="btn btn-primary btn-block">Criar Conta</button>
-                </form>
-
-                <form id="forgot-form" class="auth-form" onsubmit="handleForgotPassword(event)">
-                    <div class="form-group">
-                        <label for="forgot-email">Email da sua conta</label>
-                        <input type="email" id="forgot-email" required placeholder="seu@email.com">
-                    </div>
-                    <div id="forgot-error" class="error-message"></div>
-                    <div id="forgot-success" class="success-message"></div>
-                    <button type="submit" class="btn btn-primary btn-block">Enviar Link de Recuperação</button>
-                    <p class="auth-link">
-                        <a href="#" onclick="switchAuthTab('login'); return false;">Voltar ao Login</a>
-                    </p>
-                </form>
-            </div>
-        </section>
-
-        <section id="home-view" class="view-section hidden">
-            <div class="hero">
-                <h1>Alugue eletrodomésticos premium sem complicações</h1>
-                <p>Uma mensalidade fixa anual com entrega, instalação e manutenção totalmente incluídas.</p>
-                <button class="btn btn-primary" onclick="switchView('catalog-view')">Ver Catálogo Completo</button>
-            </div>
-            <div class="steps-section">
-                <h2>Como Funciona?</h2>
-                <div class="steps-grid">
-                    <div class="step-card">
-                        <div class="step-num">01</div>
-                        <h3>Escolha os equipamentos</h3>
-                        <p>Navegue no catálogo e selecione até 8 eletrodomésticos para a sua casa.</p>
-                    </div>
-                    <div class="step-card">
-                        <div class="step-num">02</div>
-                        <h3>Agende a entrega</h3>
-                        <p>Escolha uma data conveniente (janela segura de 7 a 30 dias).</p>
-                    </div>
-                    <div class="step-card">
-                        <div class="step-num">03</div>
-                        <h3>Desfrute sem stress</h3>
-                        <p>A manutenção e reparações são por nossa conta durante a subscrição.</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="catalog-view" class="view-section hidden">
-            <div class="view-header">
-                <h2>Catálogo de Eletrodomésticos</h2>
-                <p>Selecione os equipamentos que deseja incluir na sua subscrição anual (Máx. 8).</p>
-            </div>
-            <div class="search-filter-container">
-                <input type="text" id="search-input" placeholder="Pesquisar por nome, marca ou categoria...">
-                <div class="filter-buttons">
-                    <button class="filter-btn active" data-category="Todos">Todos</button>
-                    <button class="filter-btn" data-category="Cozinha">Cozinha</button>
-                    <button class="filter-btn" data-category="Lavandaria">Lavandaria</button>
-                    <button class="filter-btn" data-category="Climatização">Climatização</button>
-                </div>
-            </div>
-            <div class="grid-layout" id="appliances-grid"></div>
-        </section>
-
-        <section id="cart-view" class="view-section hidden">
-            <div class="view-header">
-                <h2>A Sua Subscrição</h2>
-                <p>Reveja os eletrodomésticos selecionados antes de agendar a entrega.</p>
-            </div>
-            <div class="cart-split-layout">
-                <div class="cart-items-list" id="cart-items-container"></div>
-                <div class="cart-summary-card">
-                    <h3>Resumo do Plano</h3>
-                    <div class="summary-row">
-                        <span>Tipo de Plano</span>
-                        <strong>Plano Completo Anual</strong>
-                    </div>
-                    <div class="summary-row">
-                        <span>Equipamentos Escolhidos</span>
-                        <span id="summary-slots">0 / 8</span>
-                    </div>
-                    <div class="summary-row total">
-                        <span>Preço Total</span>
-                        <strong>1000€ <small>/ano</small></strong>
-                    </div>
-                    <button id="checkout-btn" class="btn btn-primary btn-block" disabled>Confirmar e Escolher Entrega</button>
-                    <p id="checkout-warning" class="warning-text">Adicione pelo menos 1 eletrodoméstico para avançar.</p>
-                </div>
-            </div>
-        </section>
-
-        <section id="delivery-view" class="view-section hidden">
-            <div class="view-header">
-                <h2>Dados de Entrega e Pagamento</h2>
-                <p>Respeitando a regra de negócio: Entregas apenas disponíveis entre 7 a 30 dias a contar de hoje.</p>
-            </div>
-            <div class="checkout-grid">
-                <form id="delivery-form" class="checkout-form" onsubmit="processCheckout(event)">
-                    <div class="form-group">
-                        <label for="client-name">Nome Completo</label>
-                        <input type="text" id="client-name" required placeholder="Ex: João Silva">
-                    </div>
-                    <div class="form-group">
-                        <label for="client-address">Morada de Entrega</label>
-                        <input type="text" id="client-address" required placeholder="Rua, número e andar">
-                    </div>
-                    <div class="form-group">
-                        <label for="delivery-date">Data de Entrega (Janela de 7 a 30 dias)</label>
-                        <input type="date" id="delivery-date" required>
-                        <small id="date-bounds-hint" class="hint-text"></small>
-                    </div>
-                    <div class="form-group">
-                        <label for="delivery-slot">Janela Horária</label>
-                        <select id="delivery-slot" required>
-                            <option value="">Selecione um horário...</option>
-                            <option value="08:00 - 12:00">Manhã (08:00 - 12:00)</option>
-                            <option value="13:00 - 17:00">Tarde (13:00 - 17:00)</option>
-                            <option value="17:00 - 20:00">Final do dia (17:00 - 20:00)</option>
-                        </select>
-                    </div>
-                    <div class="payment-simulation">
-                        <h3>Simulação de Pagamento Seguro</h3>
-                        <p class="hint-text">A subscrição será processada no valor anual de 1000€.</p>
-                    </div>
-                    <button type="submit" class="btn btn-success btn-block">Concluir Subscrição e Pagar</button>
-                </form>
-                <div class="order-preview-card">
-                    <h3>Itens a Entregar</h3>
-                    <div id="delivery-preview-items"></div>
-                </div>
-            </div>
-        </section>
-
-        <section id="success-view" class="view-section hidden">
-            <div class="success-card">
-                <div class="success-icon">✓</div>
-                <h2>Subscrição Confirmada com Sucesso!</h2>
-                <p>Obrigado por escolher a HomeLoop. O seu contrato anual foi gerado.</p>
-                <div class="receipt-box" id="receipt-details"></div>
-                <button class="btn btn-primary" onclick="resetApp()">Voltar ao Início</button>
-            </div>
-        </section>
-
-        <section id="account-view" class="view-section hidden">
-            <div class="view-header">
-                <h2>Minha Conta</h2>
-                <p>Gerencie a sua subscrição e equipamentos alugados.</p>
-            </div>
-            <div class="account-grid">
-                <div class="account-section">
-                    <h3>Dados da Conta</h3>
-                    <div class="account-info">
-                        <p><strong>Email:</strong> <span id="account-email"></span></p>
-                        <p><strong>Nome:</strong> <span id="account-name"></span></p>
-                        <p><strong>Morada:</strong> <span id="account-address"></span></p>
-                    </div>
-                </div>
-                <div class="account-section">
-                    <h3>Subscrição Ativa</h3>
-                    <div class="subscription-info">
-                        <p><strong>Número de Contrato:</strong> <span id="account-contract-id">-</span></p>
-                        <p><strong>Status:</strong> <span id="account-status" class="status-badge">Ativa</span></p>
-                        <p><strong>Equipamentos Alugados:</strong> <span id="account-rental-count">0</span>/8</p>
-                    </div>
-                </div>
-                <div class="account-section">
-                    <h3>Equipamentos Alugados</h3>
-                    <div id="rental-list" class="rental-list">
-                        <p class="hint-text">Nenhum equipamento alugado</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <footer class="footer">
-        <p>© 2026 HomeLoop. Todos os direitos reservados. Projeto MAS - Épico 1.</p>
-    </footer>
-
-    <script src="app.js"></script>
-</body>
+<html lang=\"pt\">
+  <head>
+    <meta charset=\"UTF-8\"/>
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>
+    <title>HomeLoop — Eletrodomésticos como Serviço</title>
+    <link rel=\"stylesheet\" href=\"css/style.css\"/>
+    <style>
+      @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+      .nb-cta{background:var(--teal);color:white;padding:8px 16px;border-radius:10px;font-size:.875rem;cursor:pointer;border:none;transition:background .15s}
+      .nb-cta:hover{background:var(--teal-d)}
+    </style>
+  </head>
+  <body>
+    <div id=\"navbar-root\"></div>
+    <div id=\"page-home\" class=\"page\"></div>
+    <div id=\"page-login\" class=\"page\"></div>
+    <div id=\"page-register\" class=\"page\"></div>
+    <div id=\"page-plans\" class=\"page\"></div>
+    <div id=\"page-appliances\" class=\"page\"></div>
+    <div id=\"page-subscription\" class=\"page\"></div>
+    <div id=\"page-payment\" class=\"page\"></div>
+    <div id=\"page-delivery\" class=\"page\"></div>
+    <div id=\"page-dashboard\" class=\"page\"></div>
+    <div id=\"footer-root\"></div>
+    <script src=\"js/data.js\"></script>
+    <script src=\"js/app.js\"></script>
+    <script src=\"js/pages.js\"></script>
+    <script>
+      document.getElementById('footer-root').innerHTML = renderFooter();
+      updateNavbar();
+      renderPage(location.pathname || '/');
+    </script>
+  </body>
 </html>

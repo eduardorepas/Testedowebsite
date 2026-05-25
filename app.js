@@ -1,1 +1,157 @@
-function navigate(path) {\n  const pub = ['/', '/login', '/register'];\n  if (!pub.includes(path) && !isLoggedIn()) {\n    history.pushState(null, '', '/login');\n    renderPage('/login');\n    return;\n  }\n  history.pushState(null, '', path);\n  renderPage(path);\n  window.scrollTo(0, 0);\n}\n\nfunction renderPage(path) {\n  const pub = ['/', '/login', '/register'];\n  if (!pub.includes(path) && !isLoggedIn()) {\n    path = '/login';\n    history.replaceState(null, '', '/login');\n  }\n  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));\n  const map = {\n    '/':'page-home', '/login':'page-login', '/register':'page-register',\n    '/plans':'page-plans', '/appliances':'page-appliances',\n    '/subscription':'page-subscription', '/payment':'page-payment',\n    '/delivery':'page-delivery', '/dashboard':'page-dashboard'\n  };\n  const el = document.getElementById(map[path] || 'page-home');\n  if (el) el.classList.add('active');\n  updateNavbar();\n  switch(path) {\n    case '/': renderHome(); break;\n    case '/login': renderLogin(); break;\n    case '/register': renderRegister(); break;\n    case '/plans': renderPlans(); break;\n    case '/appliances': renderAppliances(); break;\n    case '/subscription': renderSubscription(); break;\n    case '/payment': renderPayment(); break;\n    case '/delivery': renderDelivery(); break;\n    case '/dashboard': renderDashboard(); break;\n  }\n}\n\nwindow.addEventListener('popstate', () => renderPage(location.pathname));\ndocument.addEventListener('click', e => {\n  const a = e.target.closest('[data-nav]');\n  if (a) { e.preventDefault(); navigate(a.dataset.nav); }\n});\n\nfunction updateNavbar() {\n  const root = document.getElementById('navbar-root');\n  if (!root) return;\n  const loggedIn = isLoggedIn();\n  const user = getCurrentUser();\n  const path = location.pathname;\n  const selected = getSelectedAppliances();\n\n  const lnk = (label, to, extra='') =>\n    `<button class=\"nb-link ${path===to?'active':''}\" data-nav=\"${to}\" ${extra}>${label}</button>`;\n\n  root.innerHTML = `<nav class=\"navbar\"><div class=\"nb-inner\"><div class=\"nb-logo\" data-nav=\"/\">Home<span>Loop</span></div><div class=\"nb-links\">${lnk('Início','/')}${loggedIn ? `${lnk('Catálogo','/appliances')}${lnk('Planos','/plans')}${lnk('Subscrição','/subscription')}` : ''}</div><div class=\"nb-right\">${loggedIn ? `<span class=\"nb-user\">Olá, <strong>${user.name.split(' ')[0]}</strong></span>${selected.length > 0 ? `<button class=\"nb-cart\" data-nav=\"/subscription\">🛒 O Meu Plano <span class=\"cart-badge\">${selected.length}</span></button>` : ''}<button class=\"btn-logout\" onclick=\"handleLogout()\">Sair</button>` : `<button class=\"nb-link\" data-nav=\"/login\">Entrar</button><button class=\"btn nb-cta\" data-nav=\"/register\">Registar-se</button>`}</div><button class=\"nb-burger\" onclick=\"toggleMobile()\">☰</button></div><div class=\"nb-mobile\" id=\"nb-mobile\">${loggedIn ? `<button data-nav=\"/\">Início</button><button data-nav=\"/appliances\">Catálogo</button><button data-nav=\"/plans\">Planos</button><button data-nav=\"/subscription\">Subscrição</button><button data-nav=\"/dashboard\">O Meu Painel</button><button onclick=\"handleLogout()\" style=\"color:var(--red)\">Sair</button>` : `<button data-nav=\"/\">Início</button><button data-nav=\"/login\">Entrar</button><button data-nav=\"/register\">Registar-se</button>`}</div></nav>`;\n}\n\nfunction toggleMobile() {\n  document.getElementById('nb-mobile')?.classList.toggle('open');\n}\n\nfunction handleLogout() { logout(); navigate('/'); }\n\nfunction renderFooter() {\n  return `<footer style=\"background:var(--navy);color:white;margin-top:auto\"><div style=\"max-width:1280px;margin:0 auto;padding:3rem 1.5rem\"><div style=\"display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:2rem;flex-wrap:wrap\"><div><div style=\"font-family:'Sora',sans-serif;font-size:1.25rem;font-weight:700;margin-bottom:.875rem\">Home<span style=\"color:var(--teal)\">Loop</span></div><p style=\"color:#94a3b8;font-size:.82rem;line-height:1.6\">A forma mais inteligente de equipar a sua casa. Eletrodomésticos premium com entrega, instalação e manutenção incluídas.</p></div><div><h4 style=\"font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:#cbd5e1;margin-bottom:.875rem\">Produto</h4>${['Catálogo,/appliances','Planos,/plans','Subscrição,/subscription'].map(i=>{const [l,p]=i.split(',');return `<button data-nav=\"${p}\" style=\"display:block;background:none;border:none;cursor:pointer;color:#94a3b8;font-size:.82rem;margin-bottom:7px;font-family:'DM Sans',sans-serif;text-align:left\">${l}</button>`;}).join('')}</div><div><h4 style=\"font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:#cbd5e1;margin-bottom:.875rem\">Empresa</h4>${['Sobre Nós','Carreiras','Blog'].map(i=>`<a href=\"#\" style=\"display:block;color:#94a3b8;font-size:.82rem;margin-bottom:7px\">${i}</a>`).join('')}</div><div><h4 style=\"font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:#cbd5e1;margin-bottom:.875rem\">Suporte</h4>${['Centro de Ajuda','Contacte-nos','Privacidade'].map(i=>`<a href=\"#\" style=\"display:block;color:#94a3b8;font-size:.82rem;margin-bottom:7px\">${i}</a>`).join('')}</div></div><div style=\"margin-top:2.5rem;padding-top:1.5rem;border-top:1px solid #334155;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px\"><p style=\"color:#64748b;font-size:.78rem\">© 2026 HomeLoop. Todos os direitos reservados.</p><p style=\"color:#64748b;font-size:.78rem\">alugar com inteligência · viver melhor</p></div></div></footer>`;\n}\n\nfunction appCard(a, showCancel = false) {\n  const sel = isSelected(a.id);\n  const plan = getCurrentPlan();\n  const state = getState();\n  const full = plan && state.selectedIds.length >= plan.maxAppliances;\n  const icon = CATEGORY_ICONS[a.category] || '📦';\n\n  let btnClass, btnLabel;\n  if (!plan) { btnClass='no-plan'; btnLabel='Escolha um plano primeiro'; }\n  else if (sel) { btnClass='is-added'; btnLabel='✓ Adicionado — clique para remover'; }\n  else if (full) { btnClass='is-full'; btnLabel=`Plano completo (${plan.maxAppliances}/${plan.maxAppliances})`; }\n  else { btnClass='can-add'; btnLabel='Adicionar à subscrição'; }\n\n  return `<div class=\"app-card ${sel?'selected':''}\" id=\"ac-${a.id}\"><div class=\"app-img\"><img src=\"${a.image}\" alt=\"${a.name}\" loading=\"lazy\" onerror=\"this.src='https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=300&fit=crop'\"><div class=\"app-cat\">${icon} ${a.category}</div>${sel ? '<div class=\"app-check\">✓</div>' : ''}</div><div class=\"app-body\"><div class=\"app-brand\">${a.brand}</div><div class=\"app-name\">${a.name}</div><div class=\"app-desc\">${a.description}</div><div class=\"app-feats\">${a.features.map(f=>`<span class=\"app-feat\">${f}</span>`).join('')}</div>${showCancel ? `<button class=\"btn-add\" style=\"background:#fee2e2;color:var(--red);border:1px solid #fca5a5\" onclick=\"handleCancelAppliance('${a.id}')\">✕ Anular aluguer</button>` : `<button class=\"btn-add ${btnClass}\" onclick=\"toggleApp('${a.id}')\" ${btnClass==='is-full'||btnClass==='no-plan'?'disabled':''}>${btnLabel}</button>`}</div></div>`;\n}\n\nfunction toggleApp(id) {\n  if (!getCurrentPlan()) { navigate('/plans'); return; }\n  if (isSelected(id)) removeAppliance(id);\n  else addAppliance(id);\n  renderPage(location.pathname);\n}\n\nfunction handleCancelAppliance(id) {\n  const a = APPLIANCES.find(x => x.id === id);\n  if (!a) return;\n  if (confirm(`Tem a certeza que quer anular o aluguer de \"${a.name}\"? Esta ação remove o equipamento do seu plano.`)) {\n    cancelAppliance(id);\n    renderPage(location.pathname);\n  }\n}
+// ====== EVENT HANDLING / ACTIONS ======
+
+function doRegister() {
+  const name = document.getElementById('r-name')?.value?.trim();
+  const age = document.getElementById('r-age')?.value?.trim();
+  const email = document.getElementById('r-email')?.value?.trim();
+  const pass = document.getElementById('r-pass')?.value;
+  const pass2 = document.getElementById('r-pass2')?.value;
+  const errEl = document.getElementById('reg-err');
+  
+  const showErr = msg => { errEl.textContent = msg; errEl.classList.add('show'); };
+  
+  if (pass !== pass2) return showErr('As passwords não coincidem.');
+  
+  const result = registerUser(name, age, email, pass);
+  if (!result.ok) return showErr(result.error);
+  
+  login(email, pass);
+  navigate('/');
+}
+
+function doLogin() {
+  const email = document.getElementById('l-email')?.value?.trim();
+  const pass = document.getElementById('l-pass')?.value;
+  
+  if (login(email, pass)) { 
+    navigate('/'); 
+  } else { 
+    const err = document.getElementById('login-err'); 
+    err.textContent = 'Email ou password incorretos.'; 
+    err.classList.add('show'); 
+  }
+}
+
+function choosePlan(planId) { 
+  selectPlan(planId); 
+  renderPlans(); 
+}
+
+function onSearch(val) {
+  appSearch = val;
+  const filtered = APPLIANCES.filter(a => {
+    const mc = appFilter === 'Todos' || a.category === appFilter;
+    const ms = a.name.toLowerCase().includes(val.toLowerCase()) || a.category.toLowerCase().includes(val.toLowerCase()) || a.brand.toLowerCase().includes(val.toLowerCase());
+    return mc && ms;
+  });
+  
+  const grid = document.getElementById('app-grid');
+  if (grid) {
+    grid.innerHTML = filtered.length > 0 
+      ? filtered.map(a => appCard(a)).join('') 
+      : '<div style="grid-column:1/-1;text-align:center;padding:4rem 0"><p style="font-size:2.5rem">🔍</p><p class="text-gray mt-3">Nenhum resultado.</p></div>';
+  }
+}
+
+function onFilter(cat) { 
+  appFilter = cat; 
+  renderAppliances(); 
+}
+
+function handleConfirmSub() {
+  if (getSelectedAppliances().length === 0) return;
+  navigate('/payment');
+}
+
+function formatCardNumber(el) {
+  let value = el.value.replace(/\s/g, '');
+  el.value = value.replace(/(\d{4})/g, '$1 ').trim();
+}
+
+function formatExpiry(el) {
+  let value = el.value.replace(/\D/g, '');
+  if (value.length >= 2) value = value.slice(0, 2) + '/' + value.slice(2, 4);
+  el.value = value;
+}
+
+function processPaymentSubmit() {
+  const cardNum = document.getElementById('pay-cardnum')?.value?.replace(/\s/g, '') || '';
+  const cardName = document.getElementById('pay-name')?.value || '';
+  const cardExp = document.getElementById('pay-expiry')?.value || '';
+  const cardCVC = document.getElementById('pay-cvc')?.value || '';
+  const plan = getCurrentPlan();
+  const errEl = document.getElementById('pay-err');
+  
+  const result = processPayment(plan.price, cardNum, cardName, cardExp, cardCVC);
+  if (!result.ok) {
+    errEl.textContent = result.error;
+    errEl.classList.add('show');
+    return;
+  }
+  renderPaymentSuccess(result.transactionId);
+}
+
+// ====== LÓGICA DO CALENDÁRIO DE ENTREGA ======
+
+function handleDeliveryApplianceSelect(id) {
+  dState.applianceId = id;
+  renderDelivery();
+}
+
+function updateDeliveryAddress(value) {
+  dState.addr = value;
+}
+
+function prevMo() {
+  if (dState.mo === 0) { dState.mo = 11; dState.yr--; } 
+  else { dState.mo--; }
+  dState.date = null; dState.slot = null;
+  renderDelivery();
+}
+
+function nextMo() {
+  if (dState.mo === 11) { dState.mo = 0; dState.yr++; } 
+  else { dState.mo++; }
+  dState.date = null; dState.slot = null;
+  renderDelivery();
+}
+
+function pickDate(day) {
+  dState.date = new Date(dState.yr, dState.mo, day);
+  dState.slot = null;
+  renderDelivery();
+}
+
+function pickSlot(slotWindow) {
+  dState.slot = slotWindow;
+  renderDelivery();
+}
+
+function confirmDel() {
+  if (!dState.applianceId || !dState.date || !dState.slot || !dState.addr.trim()) return;
+  
+  const appliance = APPLIANCES.find(a => a.id === dState.applianceId);
+  saveDelivery({
+    applianceId: dState.applianceId,
+    applianceName: appliance ? appliance.name : 'Eletrodoméstico',
+    date: dState.date.toLocaleDateString('pt-PT'),
+    slot: dState.slot,
+    addr: dState.addr
+  });
+  
+  dState.applianceId = null; dState.date = null; dState.slot = null;
+  renderDelivery();
+}
+
+// Sistema mock de navegação simples (Substitui pelo teu router real, se necessário)
+function navigate(path) {
+  console.log(`A navegar para: ${path}`);
+  if (path === '/') renderHome();
+  if (path === '/register') renderRegister();
+  if (path === '/login') renderLogin();
+  if (path === '/plans') renderPlans();
+  if (path === '/appliances') renderAppliances();
+  if (path === '/subscription') renderSubscription();
+  if (path === '/payment') renderPayment();
+  if (path === '/delivery') renderDelivery();
+}

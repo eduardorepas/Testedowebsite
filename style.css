@@ -260,3 +260,6 @@ textarea{resize:none}
   .ts-grid{grid-template-columns:1fr}
   .slot-row{grid-template-columns:repeat(4,1fr)}
 }
+/* Erro específico para a simulação de falha de pagamento (US1.1) */
+.pay-err { background:#fee2e2; color:var(--red); border:1px solid #fca5a5; border-radius:10px; padding:10px 14px; font-size:.82rem; margin-bottom:1rem; display:none; }
+.pay-err.show { display:block; }

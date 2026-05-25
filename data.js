@@ -1,1 +1,82 @@
-const PLANS = {\n  parcial: { id:'parcial', name:'Plano Parcial', price:600, maxAppliances:4 },\n  completo: { id:'completo', name:'Plano Completo', price:1000, maxAppliances:8 }\n};\n\nconst APPLIANCES = [\n  { id:'a1', name:'Samsung EcoBubble 9kg', brand:'Samsung', category:'Máquina de Lavar', description:'Tecnologia EcoBubble para lavagem eficiente a baixas temperaturas.', features:['9kg','1400 rpm','A+++','Wi-Fi'], image:'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?w=400&h=300&fit=crop' },\n  { id:'a2', name:'LG InstaView Frigorífico', brand:'LG', category:'Frigorífico', description:'Painel de vidro InstaView — dois toques para iluminar o interior sem abrir a porta.', features:['French Door','No Frost','A++'], image:'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?w=400&h=300&fit=crop' },\n  { id:'a3', name:'Bosch Serie 6 Lava-Louça', brand:'Bosch', category:'Máquina de Lavar Louça', description:'Silenciosa com tecnologia PerfectDry para secagem perfeita.', features:['14 conjuntos','42 dB','A+++'], image:'https://images.unsplash.com/photo-1758631130778-42d518bf13aa?w=400&h=300&fit=crop' },\n  { id:'a4', name:\"De'Longhi Dinamica Plus\", brand:\"De'Longhi\", category:'Máquina de Café', description:'Máquina automática com ecrã tátil a cores e sistema LatteCrema.', features:['Ecrã tátil','Moinho integrado','Wi-Fi'], image:'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&h=300&fit=crop' },\n  { id:'a5', name:'Whirlpool FreshControl', brand:'Whirlpool', category:'Frigorífico', description:'Tecnologia FreshControl para manter os alimentos frescos até 3x mais tempo.', features:['No Frost','6th Sense','A++'], image:'https://images.unsplash.com/photo-1584568694244-14fbdf83bd30?w=400&h=300&fit=crop' },\n  { id:'a6', name:'Siemens iQ700 Forno', brand:'Siemens', category:'Forno', description:'Forno multifunções com assistente de cozinha e limpeza automática pirólise.', features:['Home Connect','Pirólise','4D Hotair'], image:'https://plus.unsplash.com/premium_photo-1744390860448-3d12cfcae65f?w=400&h=300&fit=crop' },\n  { id:'a7', name:'Miele W1 ChromeEdition', brand:'Miele', category:'Máquina de Lavar', description:'Máquina de lavar premium com tambor em favo de mel e TwinDos automático.', features:['TwinDos','A+++','WiFiConn@ct'], image:'https://images.unsplash.com/photo-1778731660255-215c9172e18d?w=400&h=300&fit=crop' },\n  { id:'a8', name:'Electrolux PerfectCare 800', brand:'Electrolux', category:'Máquina de Secar', description:'Secadora de condensação com tecnologia SensiDry para máxima eficiência.', features:['SensiDry','9kg','A++'], image:'https://images.unsplash.com/photo-1721395285456-05a8b9b45b9f?w=400&h=300&fit=crop' },\n  { id:'a9', name:'LG NeoChef Micro-ondas', brand:'LG', category:'Micro-ondas', description:'Smart Inverter para cozinhar de forma uniforme. Interior EasyClean.', features:['Smart Inverter','42L','Grill'], image:'https://images.unsplash.com/photo-1574269909862-7e1d70bb8078?w=400&h=300&fit=crop' },\n  { id:'a10', name:'Bosch HNG6764B6 Fogão', brand:'Bosch', category:'Fogão', description:'Fogão combinado com placa a gás e forno elétrico de alta eficiência.', features:['4 queimadores gás','66L forno','A'], image:'https://images.unsplash.com/photo-1556909172-54557c7e4fb7?w=400&h=300&fit=crop' },\n  { id:'a11', name:'Dyson V15 Detect', brand:'Dyson', category:'Aspirador', description:'Aspirador sem fios com laser que deteta partículas invisíveis a olho nu.', features:['Laser Detect','HEPA','60 min'], image:'https://images.unsplash.com/photo-1558317374-067fb5f30001?w=400&h=300&fit=crop' },\n  { id:'a12', name:'Samsung WindFree AC', brand:'Samsung', category:'Ar Condicionado', description:'Sistema WindFree sem fluxo de ar direto para conforto máximo.', features:['WindFree','Wi-Fi','A+++'], image:'https://plus.unsplash.com/premium_photo-1676320514036-fcc490dbd855?w=400&h=300&fit=crop&crop=focalpoint&fp-y=0&fp-x=0.2' }\n];\n\nconst CATEGORY_ICONS = {\n  'Máquina de Lavar':'🫧', 'Frigorífico':'❄️', 'Máquina de Lavar Louça':'🍽️',\n  'Máquina de Café':'☕', 'Forno':'🔥', 'Máquina de Secar':'💨',\n  'Micro-ondas':'📡', 'Fogão':'🍳', 'Aspirador':'🌀', 'Ar Condicionado':'🌬️'\n};\n\nconst USERS_KEY = 'homeloop_users';\nconst STATE_KEY = 'homeloop_state';\n\nfunction getUsers() {\n  try { return JSON.parse(localStorage.getItem(USERS_KEY)) || []; }\n  catch { return []; }\n}\n\nfunction saveUsers(users) {\n  localStorage.setItem(USERS_KEY, JSON.stringify(users));\n}\n\nfunction registerUser(name, age, email, password) {\n  if (parseInt(age) < 18) return { ok: false, error: 'Tens de ter 18 ou mais anos para te registar.' };\n  const users = getUsers();\n  if (users.find(u => u.email.toLowerCase() === email.toLowerCase()))\n    return { ok: false, error: 'Este email já está registado.' };\n  if (!name.trim()) return { ok: false, error: 'O nome não pode estar vazio.' };\n  if (password.length < 4) return { ok: false, error: 'A password deve ter pelo menos 4 caracteres.' };\n  const user = { name: name.trim(), age: parseInt(age), email: email.trim().toLowerCase(), password };\n  users.push(user);\n  saveUsers(users);\n  return { ok: true, user };\n}\n\nfunction getState() {\n  try {\n    const raw = localStorage.getItem(STATE_KEY);\n    if (!raw) return defaultState();\n    return { ...defaultState(), ...JSON.parse(raw) };\n  } catch { return defaultState(); }\n}\n\nfunction defaultState() {\n  return {\n    user: null,\n    planId: null,\n    selectedIds: [],\n    subscribed: false,\n    deliveries: [],\n    cancelledIds: [],\n    paymentStatus: null\n  };\n}\n\nfunction saveState(s) { localStorage.setItem(STATE_KEY, JSON.stringify(s)); }\n\nfunction login(email, password) {\n  const user = getUsers().find(u => u.email === email.trim().toLowerCase() && u.password === password);\n  if (!user) return false;\n  const state = getState();\n  state.user = { email: user.email, name: user.name, age: user.age };\n  saveState(state);\n  return true;\n}\n\nfunction logout() { saveState(defaultState()); }\nfunction isLoggedIn() { return !!getState().user; }\nfunction getCurrentUser() { return getState().user; }\n\nfunction selectPlan(planId) {\n  const state = getState();\n  const plan = PLANS[planId];\n  if (state.selectedIds.length > plan.maxAppliances)\n    state.selectedIds = state.selectedIds.slice(0, plan.maxAppliances);\n  state.planId = planId;\n  saveState(state);\n}\n\nfunction getCurrentPlan() {\n  const s = getState();\n  return s.planId ? PLANS[s.planId] : null;\n}\n\nfunction getSelectedAppliances() {\n  return APPLIANCES.filter(a => getState().selectedIds.includes(a.id));\n}\n\nfunction addAppliance(id) {\n  const state = getState();\n  const plan = getCurrentPlan();\n  if (!plan || state.selectedIds.length >= plan.maxAppliances) return false;\n  if (state.selectedIds.includes(id)) return false;\n  state.selectedIds.push(id);\n  state.cancelledIds = (state.cancelledIds||[]).filter(i => i !== id);\n  saveState(state);\n  return true;\n}\n\nfunction removeAppliance(id) {\n  const state = getState();\n  state.selectedIds = state.selectedIds.filter(i => i !== id);\n  saveState(state);\n}\n\nfunction cancelAppliance(id) {\n  const state = getState();\n  state.selectedIds = state.selectedIds.filter(i => i !== id);\n  if (!state.cancelledIds) state.cancelledIds = [];\n  if (!state.cancelledIds.includes(id)) state.cancelledIds.push(id);\n  saveState(state);\n}\n\nfunction isSelected(id) { return getState().selectedIds.includes(id); }\nfunction isCancelled(id) { return (getState().cancelledIds||[]).includes(id); }\n\nfunction processPayment(amount, cardNumber, cardName, cardExpiry, cardCVC) {\n  if (!cardNumber || cardNumber.length < 13) {\n    return { ok: false, error: 'Número de cartão inválido (mínimo 13 dígitos).' };\n  }\n  if (!cardName || cardName.trim().length < 3) {\n    return { ok: false, error: 'Nome do titular inválido.' };\n  }\n  if (!cardExpiry || !cardExpiry.match(/^\\d{2}\\/\\d{2}$/)) {\n    return { ok: false, error: 'Data de expiração inválida (formato: MM/YY).' };\n  }\n  if (!cardCVC || cardCVC.length < 3) {\n    return { ok: false, error: 'CVC inválido.' };\n  }\n\n  const randomFail = Math.random() < 0.2;\n  if (randomFail) {\n    return { ok: false, error: 'Falha na transação. O seu banco recusou o pagamento. Por favor, verifique os dados do cartão e tente novamente.' };\n  }\n\n  const state = getState();\n  state.paymentStatus = 'success';\n  state.subscribed = true;\n  saveState(state);\n\n  return { ok: true, transactionId: 'TXN-' + Date.now() };\n}\n\nfunction confirmSubscription() {\n  const state = getState();\n  state.subscribed = true;\n  saveState(state);\n}\n\nfunction saveDelivery(delivery) {\n  const state = getState();\n  if (!state.deliveries) state.deliveries = [];\n  \n  const appliance = APPLIANCES.find(a => a.id === delivery.applianceId);\n  if (!appliance) {\n    return { ok: false, error: 'Erro! É possível o eletrodoméstico já ter sido alugado ou ter saído do catálogo, tente escolher outro' };\n  }\n\n  const plan = getCurrentPlan();\n  const selected = getSelectedAppliances();\n  if (selected.length >= plan.maxAppliances) {\n    return { ok: false, error: 'Limite de eletrodomésticos já atingido! Se quiser este eletrodoméstico terá de anular o aluguer de um dos seus eletrodomésticos previamente escolhidos.' };\n  }\n\n  delivery.status = 'agendada';\n  state.deliveries.push(delivery);\n  saveState(state);\n  return { ok: true };\n}\n\nfunction getDeliveries() {\n  return getState().deliveries || [];\n}\n\nfunction getDeliveriesByAppliance(applianceId) {\n  return getDeliveries().filter(d => d.applianceId === applianceId);\n}
+// ====== CONSTANTES E MOCK DATA ======
+const CATEGORY_ICONS = {
+  'Frigorífico': '❄️',
+  'Máquina de Lavar': '🧺',
+  'Lava-louças': '🍽️',
+  'Forno': '🍳'
+};
+
+const APPLIANCES = [
+  { id: '1', name: 'Frigorífico NoFrost Premium', brand: 'Samsung', category: 'Frigorífico', image: 'https://images.unsplash.com/photo-1571175432244-5f025856b462?w=300' },
+  { id: '2', name: 'Máquina Lavar Roupa 9kg', brand: 'Bosch', category: 'Máquina de Lavar', image: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=300' },
+  { id: '3', name: 'Lava-louças Enastrada', brand: 'Siemens', category: 'Lava-louças', image: 'https://images.unsplash.com/photo-1581622558663-b293337722da?w=300' }
+];
+
+const PLANS = {
+  parcial: { id: 'parcial', name: 'Plano Parcial', price: 600, maxAppliances: 4 },
+  completo: { id: 'completo', name: 'Plano Completo', price: 1000, maxAppliances: 8 }
+};
+
+const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const SLOTS = ['08:00 – 10:00','10:00 – 12:00','12:00 – 14:00','14:00 – 16:00','16:00 – 18:00'];
+
+// ====== ESTADO DA APLICAÇÃO ======
+let state = {
+  user: null,
+  currentPlan: null,
+  selectedAppliances: [],
+  deliveries: []
+};
+
+let dState = { yr: null, mo: null, date: null, slot: null, addr: '', applianceId: null };
+let appFilter = 'Todos';
+let appSearch = '';
+
+// ====== FUNÇÕES DE BASE DE DADOS / SISTEMA ======
+function isLoggedIn() { return state.user !== null; }
+function getCurrentPlan() { return state.currentPlan; }
+function getSelectedAppliances() { return state.selectedAppliances; }
+function getDeliveries() { return state.deliveries; }
+
+function registerUser(name, age, email, pass) {
+  if (parseInt(age) < 18) return { ok: false, error: 'É necessário ter 18 ou mais anos.' };
+  return { ok: true };
+}
+
+function login(email, pass) {
+  state.user = { email };
+  return true;
+}
+
+function selectPlan(planId) {
+  state.currentPlan = PLANS[planId];
+}
+
+function handleCancelAppliance(id) {
+  state.selectedAppliances = state.selectedAppliances.filter(a => a.id !== id);
+  renderSubscription(); // Recarrega a página onde a ação ocorreu
+}
+
+function toggleApplianceSelection(id) {
+  const app = APPLIANCES.find(a => a.id === id);
+  if (!app) return;
+  
+  const index = state.selectedAppliances.findIndex(a => a.id === id);
+  if (index > -1) {
+    state.selectedAppliances.splice(index, 1);
+  } else {
+    if (state.currentPlan && state.selectedAppliances.length < state.currentPlan.maxAppliances) {
+      state.selectedAppliances.push(app);
+    }
+  }
+  renderAppliances();
+}
+
+function processPayment(price, card, name, exp, cvc) {
+  if (!card || !name || !exp || !cvc) return { ok: false, error: 'Preencha todos os campos do cartão.' };
+  return { ok: true, transactionId: 'TX-' + Math.random().toString(36).substr(2, 9).toUpperCase() };
+}
+
+function saveDelivery(deliveryObj) {
+  state.deliveries.push(deliveryObj);
+}

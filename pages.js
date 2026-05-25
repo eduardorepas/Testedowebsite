@@ -11,7 +11,7 @@ function renderHome() {
           <button class="btn btn-outline" style="color:white;border-color:rgba(255,255,255,0.3)" data-nav="/appliances">Ver Catálogo</button>
         </div>
       </div>
-    </section> section`;
+    </section>`;
 }
 
 // ====== RENDERER: SELEÇÃO DE PLANOS ======
@@ -59,7 +59,6 @@ function renderAppliances() {
   const state = getState();
   const categories = ['Todos', 'Máquina de Lavar', 'Frigorífico', 'Máquina de Lavar Louça', 'Máquina de Café', 'Forno', 'Máquina de Secar', 'Micro-ondas', 'Fogão', 'Aspirador', 'Ar Condicionado'];
   
-  // Filtragens (US1.3 - Cenários 1 e 2)
   let filtered = APPLIANCES.filter(a => {
     const matchesCat = window.currentCategory === 'Todos' || a.category === window.currentCategory;
     const matchesSearch = a.name.toLowerCase().includes(window.currentSearch.toLowerCase()) || 
@@ -105,11 +104,9 @@ function renderAppliances() {
       <div class="app-grid">
         ${filtered.map(a => {
           const sel = isSelected(a.id);
-          const full = plan && state.selectedIds.length >= plan.maxAppliances;
           const icon = CATEGORY_ICONS[a.category] || '📦';
 
           let btnHtml = '';
-          // Caso simulação de item "a10" indisponível pontualmente no agendamento
           if (a.id === 'a10') {
             btnHtml = `<button class="btn btn-outline w-full" onclick="handleOpenSchedule('${a.id}')">Agendar Entrega (Teste Erro)</button>`;
           } else if (sel) {
@@ -131,8 +128,7 @@ function renderAppliances() {
                 <div class="app-feats">${a.features.map(f=>`<span class="app-feat">${f}</span>`).join('')}</div>
                 ${btnHtml}
               </div>
-            </div>
-          `;
+            </div>`;
         }).join('')}
       </div>
     </div>`;
@@ -225,7 +221,6 @@ function renderDelivery() {
 function renderDashboard() {
   const user = getCurrentUser();
   const state = getState();
-  const plan = getCurrentPlan();
   const selected = getSelectedAppliances();
   const deliveries = getDeliveries();
 
@@ -311,8 +306,7 @@ function renderDashboard() {
                     <button class="btn btn-outline text-xs" style="padding:4px 8px; font-size:0.7rem; color:var(--red)" 
                             onclick="triggerDeliveryStatusUpdate(${index}, 'Adiada')">Simular Adiar (Cenário 2)</button>
                   </div>
-                </div>
-              `;
+                </div>`;
             }).join('')}
           </div>
         </div>
@@ -320,12 +314,68 @@ function renderDashboard() {
     </div>`;
 }
 
-// ====== CONSTRUTOR GLOBAL DO FOOTER ======
-function renderFooter() {
-  return `
-    <footer style="background:var(--navy);color:white;margin-top:auto">
-      <div style="max-width:1280px;margin:0 auto;padding:2.5rem 1.5rem;text-align:center">
-        <p style="color:#64748b;font-size:.78rem">© 2026 HomeLoop. Todos os critérios de aceitação mapeados.</p>
+// ====== RENDERER: LOGIN ======
+function renderLogin() {
+  document.getElementById('page-login').innerHTML = `
+    <div class="login-screen">
+      <div class="login-box">
+        <div class="login-logo">Home<span>Loop</span></div>
+        <div class="login-sub">Inicie sessão para gerir os seus eletrodomésticos</div>
+        <div id="login-err-msg" class="login-err">Email ou password incorretos.</div>
+        <div class="field">
+          <label>Email</label>
+          <input type="text" id="login-email" placeholder="joao@email.com" value="joao@email.com">
+        </div>
+        <div class="field mb-4">
+          <label>Password</label>
+          <input type="password" id="login-pass" style="width:100%;padding:11px 14px;border:1px solid var(--gray-200);border-radius:11px" value="1234">
+        </div>
+        <button class="btn btn-primary w-full" onclick="executeLogin()">Entrar</button>
+        <div class="login-hint">Ainda não tem conta? <a href="#" data-nav="/register" style="color:var(--teal);font-weight:600">Registe-se</a></div>
       </div>
-    </footer>`;
+    </div>`;
+}
+
+function executeLogin() {
+  const email = document.getElementById('login-email').value;
+  const pass = document.getElementById('login-pass').value;
+  if (login(email, pass)) {
+    navigate('/dashboard');
+  } else {
+    const err = document.getElementById('login-err-msg');
+    if(err) err.classList.add('show');
+  }
+}
+
+// ====== RENDERER: REGISTO ======
+function renderRegister() {
+  document.getElementById('page-register').innerHTML = `
+    <div class="login-screen">
+      <div class="login-box">
+        <div class="login-logo">Home<span>Loop</span></div>
+        <div class="login-sub">Crie a sua conta de utilizador</div>
+        <div id="reg-err-msg" class="login-err"></div>
+        <div class="field"><label>Nome Completo</label><input type="text" id="reg-name" value="João Silva"></div>
+        <div class="field"><label>Idade</label><input type="number" id="reg-age" class="w-full" style="padding:11px 14px;border:1px solid var(--gray-200);border-radius:11px" value="25"></div>
+        <div class="field"><label>Email</label><input type="text" id="reg-email" value="joao@email.com"></div>
+        <div class="field mb-4"><label>Password</label><input type="password" id="reg-pass" style="width:100%;padding:11px 14px;border:1px solid var(--gray-200);border-radius:11px" value="1234"></div>
+        <button class="btn btn-primary w-full" onclick="executeRegister()">Criar Conta</button>
+      </div>
+    </div>`;
+}
+
+function executeRegister() {
+  const name = document.getElementById('reg-name').value;
+  const age = document.getElementById('reg-age').value;
+  const email = document.getElementById('reg-email').value;
+  const pass = document.getElementById('reg-pass').value;
+  
+  const res = registerUser(name, age, email, pass);
+  if (res.ok) {
+    login(email, pass);
+    navigate('/plans');
+  } else {
+    const err = document.getElementById('reg-err-msg');
+    if(err) { err.textContent = res.error; err.classList.add('show'); }
+  }
 }

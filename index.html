@@ -9,10 +9,16 @@
     @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
     .nb-cta{background:var(--teal);color:white;padding:8px 16px;border-radius:10px;font-size:.875rem;cursor:pointer;border:none;transition:background .15s}
     .nb-cta:hover{background:var(--teal-d)}
+    
+    /* Garantia de visibilidade para as páginas ativas */
+    .page { display: none; }
+    .page.active { display: block; }
   </style>
 </head>
 <body>
+
   <div id="navbar-root"></div>
+  
   <div id="page-home"         class="page"></div>
   <div id="page-login"        class="page"></div>
   <div id="page-register"     class="page"></div>
@@ -21,15 +27,25 @@
   <div id="page-subscription" class="page"></div>
   <div id="page-delivery"     class="page"></div>
   <div id="page-dashboard"    class="page"></div>
+  
   <div id="footer-root"></div>
 
   <script src="js/data.js"></script>
-  <script src="js/app.js"></script>
+  
   <script src="js/pages.js"></script>
+  
+  <script src="js/app.js"></script>
+  
   <script>
-    document.getElementById('footer-root').innerHTML = renderFooter();
-    updateNavbar();
-    renderPage(location.pathname || '/');
-  </script>
-</body>
-</html>
+    window.addEventListener('DOMContentLoaded', () => {
+      
+      // Inicializa o Rodapé se a função existir
+      if (typeof renderFooter === 'function') {
+        document.getElementById('footer-root').innerHTML = renderFooter();
+      }
+
+      // Inicializa ou atualiza a Navbar
+      if (typeof updateNavbar === 'function') {
+        updateNavbar();
+      } else {
+        // Navbar básica de contingência para o João conseguir navegar se h

@@ -8,14 +8,16 @@ function doRegister() {
   const pass2 = document.getElementById('r-pass2')?.value;
   const errEl = document.getElementById('reg-err');
   
-  const showErr = msg => { errEl.textContent = msg; errEl.classList.add('show'); };
+  const showErr = msg => { if(errEl) { errEl.textContent = msg; errEl.classList.add('show'); } };
   
+  if (!name || !age || !email || !pass) return showErr('Preencha todos os campos.');
   if (pass !== pass2) return showErr('As passwords não coincidem.');
   
   const result = registerUser(name, age, email, pass);
   if (!result.ok) return showErr(result.error);
   
   login(email, pass);
+  updateNavbar();
   navigate('/');
 }
 
@@ -23,34 +25,35 @@ function doLogin() {
   const email = document.getElementById('l-email')?.value?.trim();
   const pass = document.getElementById('l-pass')?.value;
   
+  if (!email || !pass) return;
+
   if (login(email, pass)) { 
+    updateNavbar();
     navigate('/'); 
   } else { 
     const err = document.getElementById('login-err'); 
-    err.textContent = 'Email ou password incorretos.'; 
-    err.classList.add('show'); 
+    if(err) {
+      err.textContent = 'Email ou password incorretos.'; 
+      err.classList.add('show'); 
+    }
   }
+}
+
+function doLogoutAction() {
+  logout();
+  updateNavbar();
+  navigate('/');
 }
 
 function choosePlan(planId) { 
   selectPlan(planId); 
   renderPlans(); 
+  updateNavbar();
 }
 
 function onSearch(val) {
   appSearch = val;
-  const filtered = APPLIANCES.filter(a => {
-    const mc = appFilter === 'Todos' || a.category === appFilter;
-    const ms = a.name.toLowerCase().includes(val.toLowerCase()) || a.category.toLowerCase().includes(val.toLowerCase()) || a.brand.toLowerCase().includes(val.toLowerCase());
-    return mc && ms;
-  });
-  
-  const grid = document.getElementById('app-grid');
-  if (grid) {
-    grid.innerHTML = filtered.length > 0 
-      ? filtered.map(a => appCard(a)).join('') 
-      : '<div style="grid-column:1/-1;text-align:center;padding:4rem 0"><p style="font-size:2.5rem">🔍</p><p class="text-gray mt-3">Nenhum resultado.</p></div>';
-  }
+  renderAppliances();
 }
 
 function onFilter(cat) { 
@@ -82,76 +85,78 @@ function processPaymentSubmit() {
   const plan = getCurrentPlan();
   const errEl = document.getElementById('pay-err');
   
-  const result = processPayment(plan.price, cardNum, cardName, cardExp, cardCVC);
+  const result = processPayment(plan?.price || 0, cardNum, cardName, cardExp, cardCVC);
   if (!result.ok) {
-    errEl.textContent = result.error;
-    errEl.classList.add('show');
+    if (errEl) { errEl.textContent = result.error; errEl.classList.add('show'); }
     return;
   }
   renderPaymentSuccess(result.transactionId);
-}
-
-// ====== LÓGICA DO CALENDÁRIO DE ENTREGA ======
-
-function handleDeliveryApplianceSelect(id) {
-  dState.applianceId = id;
-  renderDelivery();
 }
 
 function updateDeliveryAddress(value) {
   dState.addr = value;
 }
 
-function prevMo() {
-  if (dState.mo === 0) { dState.mo = 11; dState.yr--; } 
-  else { dState.mo--; }
-  dState.date = null; dState.slot = null;
-  renderDelivery();
-}
-
-function nextMo() {
-  if (dState.mo === 11) { dState.mo = 0; dState.yr++; } 
-  else { dState.mo++; }
-  dState.date = null; dState.slot = null;
-  renderDelivery();
-}
-
-function pickDate(day) {
-  dState.date = new Date(dState.yr, dState.mo, day);
-  dState.slot = null;
-  renderDelivery();
-}
-
-function pickSlot(slotWindow) {
-  dState.slot = slotWindow;
-  renderDelivery();
-}
-
-function confirmDel() {
-  if (!dState.applianceId || !dState.date || !dState.slot || !dState.addr.trim()) return;
-  
-  const appliance = APPLIANCES.find(a => a.id === dState.applianceId);
-  saveDelivery({
-    applianceId: dState.applianceId,
-    applianceName: appliance ? appliance.name : 'Eletrodoméstico',
-    date: dState.date.toLocaleDateString('pt-PT'),
-    slot: dState.slot,
-    addr: dState.addr
-  });
-  
-  dState.applianceId = null; dState.date = null; dState.slot = null;
-  renderDelivery();
-}
-
-// Sistema mock de navegação simples (Substitui pelo teu router real, se necessário)
+// ====== ROTEADOR SPA NATIVO ======
 function navigate(path) {
-  console.log(`A navegar para: ${path}`);
-  if (path === '/') renderHome();
-  if (path === '/register') renderRegister();
-  if (path === '/login') renderLogin();
-  if (path === '/plans') renderPlans();
-  if (path === '/appliances') renderAppliances();
-  if (path === '/subscription') renderSubscription();
-  if (path === '/payment') renderPayment();
-  if (path === '/delivery') renderDelivery();
+  console.log(`Navegando para: ${path}`);
+  
+  // 1. Esconder todas as views com segurança
+  document.querySelectorAll('.page').forEach(page => {
+    page.classList.remove('active');
+    page.style.display = 'none';
+  });
+
+  // 2. Mapeamento de rotas e renderizadores
+  if (path === '/') {
+    renderHome();
+    const p = document.getElementById('page-home'); p.classList.add('active'); p.style.display = 'block';
+  }
+  else if (path === '/register') {
+    renderRegister();
+    const p = document.getElementById('page-register'); p.classList.add('active'); p.style.display = 'block';
+  }
+  else if (path === '/login') {
+    renderLogin();
+    const p = document.getElementById('page-login'); p.classList.add('active'); p.style.display = 'block';
+  }
+  else if (path === '/plans') {
+    renderPlans();
+    const p = document.getElementById('page-plans'); p.classList.add('active'); p.style.display = 'block';
+  }
+  else if (path === '/appliances') {
+    renderAppliances();
+    const p = document.getElementById('page-appliances'); p.classList.add('active'); p.style.display = 'block';
+  }
+  else if (path === '/subscription') {
+    renderSubscription();
+    const p = document.getElementById('page-subscription'); p.classList.add('active'); p.style.display = 'block';
+  }
+  else if (path === '/payment') {
+    renderPayment();
+    const p = document.getElementById('page-payment'); p.classList.add('active'); p.style.display = 'block';
+  }
+  else if (path === '/delivery') {
+    renderDelivery();
+    const p = document.getElementById('page-delivery'); p.classList.add('active'); p.style.display = 'block';
+  }
+  else if (path === '/dashboard') {
+    renderDashboard();
+    const p = document.getElementById('page-dashboard'); p.classList.add('active'); p.style.display = 'block';
+  }
+
+  // Atualiza a navbar para refletir mudanças de estado (login/carrinho)
+  updateNavbar();
+  window.scrollTo(0, 0);
 }
+
+// ====== CAPTURA AUTOMÁTICA DE ATRIBUTOS DATA-NAV ======
+document.addEventListener('click', (e) => {
+  // Procura o elemento clicado ou o seu parente mais próximo com "data-nav"
+  const target = e.target.closest('[data-nav]');
+  if (target) {
+    e.preventDefault();
+    const path = target.getAttribute('data-nav');
+    navigate(path);
+  }
+});
